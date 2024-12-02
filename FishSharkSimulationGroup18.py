@@ -37,9 +37,9 @@ random.seed(62)
 #Tuneable Parameters
 NUM_FISH = 50 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
+NUM_SHARKS = 2 #Amount of predators
 FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
-PREDATOR_SPEED = 5 #Speed of predator
+PREDATOR_SPEED = 7 #Speed of predator
 FISH_SPEED = 4 #Speed of prey
 FISH_VISION = 150 #Vision of prey
 PREDATOR_VISION = 150 #Vision of predator
@@ -53,6 +53,7 @@ SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. I
 SENSORY_DELAY_SHARK = -2 #Placeholder value for now
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 T_FIT = np.arange(DELAY_TIME)
+USE_DELAY = True
 
 class Fish:
     def __init__(self, cohesion):
@@ -84,7 +85,7 @@ class Fish:
                     distance = 1e-6
                 
                 #Calculate sepration, to avoid overlap while keeping swarming behaviour   
-                repulsion_strength = math.exp(-distance / 5)  #Exponential falloff
+                repulsion_strength = math.exp(-distance / 10)  #Exponential falloff
                 sep_x += (self.x - other.x) * repulsion_strength
                 sep_y += (self.y - other.y) * repulsion_strength
 
@@ -92,7 +93,7 @@ class Fish:
         self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
         self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
         self.vx += avg_vx * 0.02
-        self.vy += avg_vy * 0.02
+        self.vy += avg_vy * 0.02 #Remove 0.2 add variable named something
         self.vx += sep_x * 0.05
         self.vy += sep_y * 0.05
         self.cohesion = 0.5
@@ -102,16 +103,26 @@ class Fish:
             if shark_dist < PREDATOR_VISION:
                 self.vx += (self.x - shark.x) / shark_dist * self.avoidence
                 self.vy += (self.y - shark.y) / shark_dist * self.avoidence
-                panic = 1/shark_dist
+                if shark_dist < 50:
+                    self.vx += (self.x - shark.x) / shark_dist * self.avoidence
+                    self.vy += (self.y - shark.y) / shark_dist * self.avoidence
                 
         if count > 0:
             #Adjust movement based on cohesion
-            center_x /= count
-            center_y /= count
-            self.vx += (center_x - self.x) * self.cohesion * 0.01
-            self.vy += (center_y - self.y) * self.cohesion * 0.01
-            avg_vx /= count
-            avg_vy /= count
+            if shark_dist < 50:
+                center_x /= count
+                center_y /= count
+                self.vx += (center_x - self.x) * self.cohesion*0.00000000000001
+                self.vy += (center_y - self.y) * self.cohesion*0.00000000000001
+                avg_vx /= count
+                avg_vy /= count
+            else:
+                center_x /= count
+                center_y /= count
+                self.vx += (center_x - self.x) * self.cohesion*0.1
+                self.vy += (center_y - self.y) * self.cohesion*0.1
+                avg_vx /= count
+                avg_vy /= count
             
         #Soft boundary conditions, fish are weakly repelled when approching border 
         repel_distance = 0.2*FIELD_SIZE  #Distance at which repelling force is applied
@@ -183,19 +194,22 @@ class Shark:
             if closest_fish:
                 dx1 = closest_fish.x - self.x
                 dy1 = closest_fish.y - self.y
-                
-                px = np.polyfit(T_FIT, fish_position_x[closest_index,:], 1)[0]
-                py = np.polyfit(T_FIT, fish_position_y[closest_index,:], 1)[0]
-                dx = (px-self.x)
-                dy = (py-self.y)
-                dist = math.sqrt(dx**2 + dy**2)
                 dist1 = math.sqrt(dx1**2 + dy1**2)
-                print(px)
-                if dist > 0:
-                    #self.x += (dx / dist) * PREDATOR_SPEED
-                    #self.y += (dy / dist) * PREDATOR_SPEED
-                    self.x += 0.5*dx*PREDATOR_SPEED/dist + 0.5*(dx1 / dist1) * PREDATOR_SPEED
-                    self.y += 0.5*dy*PREDATOR_SPEED/dist + 0.5*(dy1 / dist1) * PREDATOR_SPEED
+                if USE_DELAY:
+                    px = np.polyfit(T_FIT, fish_position_x[closest_index,:], 1)[0]
+                    py = np.polyfit(T_FIT, fish_position_y[closest_index,:], 1)[0]
+                    dx = (px-self.x)
+                    dy = (py-self.y)
+                    dist = math.sqrt(dx**2 + dy**2)
+                    
+                    if dist > 0:
+                        #self.x += (dx / dist) * PREDATOR_SPEED
+                        #self.y += (dy / dist) * PREDATOR_SPEED
+                        self.x += 0.5*dx*PREDATOR_SPEED/dist + 0.5*(dx1 / dist1) * PREDATOR_SPEED
+                        self.y += 0.5*dy*PREDATOR_SPEED/dist + 0.5*(dy1 / dist1) * PREDATOR_SPEED
+                else:
+                    self.x += dx1*PREDATOR_SPEED/dist1
+                    self.y += dy1*PREDATOR_SPEED/dist1
             else:
                 
                 if self.random_direction_timer <= 0:

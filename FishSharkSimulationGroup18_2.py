@@ -39,6 +39,7 @@ NUM_FISH = 50 #Amount of prey constant for now
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
 FIELD_SIZE = 600 #Size of area, also affects simulation windowsize!
+WINDOWS_SIZE = 500 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED = 5 #Speed of predator
 FISH_SPEED = 4.9 #Speed of prey
 FISH_VISION = 50 #Vision of prey
@@ -229,10 +230,22 @@ class Shark:
 class FishSimulation:
     def __init__(self, root):
         self.root = root 
-        self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
-        self.canvas.pack()
+        #self.canvas = tk.Canvas(root, width=WINDOWS_SIZE, height=WINDOWS_SIZE, bg="lightblue")
+        #self.canvas.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
         self.total_fish_eaten = 0
+        #self.scaler = WINDOWS_SIZE / FIELD_SIZE
+
+        tk1 = tk.Tk()
+        tk1.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        tk1.configure(background='#000000')
+        tk1.attributes('-topmost', 1)
+        self.canvas = tk.Canvas(tk1, background='#ECECEC')
+        self.canvas.place(x=10, y=10, height=WINDOWS_SIZE, width=WINDOWS_SIZE)
+        self.scaler = WINDOWS_SIZE / FIELD_SIZE
+
+
 
         self.fish_population = [
             Fish(BASE_COHESION) for _ in range(NUM_FISH)#, random.uniform(0, 1), random.uniform(0, 1)) for _ in range(NUM_FISH)
@@ -268,17 +281,21 @@ class FishSimulation:
         #Draw sharks
         for shark in self.sharks:
             self.canvas.create_oval(
-                shark.x - 10,
-                shark.y - 10,
-                shark.x + 10,
-                shark.y + 10,
+                (shark.x - 10) * self.scaler,
+                (shark.y - 10) * self.scaler,
+                (shark.x + 10) * self.scaler,
+                (shark.y + 10) * self.scaler,
                 fill="red",
             )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
-                fish.x - 5, fish.y - 5, fish.x + 5, fish.y + 5, fill="blue"
+                (fish.x - 5) * self.scaler, 
+                (fish.y - 5) * self.scaler, 
+                (fish.x + 5) * self.scaler, 
+                (fish.y + 5) * self.scaler, 
+                fill="blue"
             )
 
         #Calculate average cohesion and number of fish alive

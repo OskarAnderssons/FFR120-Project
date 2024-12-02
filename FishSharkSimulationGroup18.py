@@ -55,6 +55,7 @@ SENSORY_DELAY_SHARK = -2 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
+WINDOWS_SIZE = 1000
 
 class Fish:
     def __init__(self, cohesion):
@@ -63,7 +64,7 @@ class Fish:
         self.y = random.uniform(0, FIELD_SIZE)
         self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)
         self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)
-        self.cohesion = cohesion  # Swarming parameter
+        self.cohesion = cohesion  #Swarming parameter
 
     def move(self, school, sharks):
         center_x, center_y, count = 0, 0, 0
@@ -156,15 +157,18 @@ class Shark:
         self.y = y
         self.cooldown = 0
         self.random_direction_timer = 0
+        self.shark_full = False
     def move(self, fish_population, fish_position_x, fish_position_y):
         #If shark on cooldown choose a random direction and follow it until cooldown is over
-        if self.cooldown > 0:
+        if self.shark_full:
             
             self.vx = PREDATOR_SPEED/4
             self.vy = PREDATOR_SPEED/4
             self.x += self.vx
             self.y += self.vy
             self.cooldown -= 1
+            if self.cooldown == 0:
+                self.shark_full == False
         else:
             
             closest_fish = None
@@ -232,6 +236,7 @@ class Shark:
             if distance < 10:  
                 fish_population.remove(fish)
                 self.cooldown = PREDATOR_COOLDOWN  #Set cooldown after eating
+                self.shark_full = True
                 fish_eaten += 1
                 break
         return fish_eaten
@@ -243,11 +248,18 @@ class Shark:
 class FishSimulation:
     def __init__(self, root):
         self.root = root 
-        self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
-        self.canvas.pack()
+        #self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
+        #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
         self.total_fish_eaten = 0
 
+        root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        #tk1.configure(background='#000000')
+        root.attributes('-topmost', 1)
+        self.canvas = tk.Canvas(root, background='#ECECEC')
+        self.canvas.place(x=10, y=10, height=WINDOWS_SIZE, width=WINDOWS_SIZE)
+        self.scaler = WINDOWS_SIZE / FIELD_SIZE
+        
         self.fish_population = [
             Fish(BASE_COHESION) for _ in range(NUM_FISH)#, random.uniform(0, 1), random.uniform(0, 1)) for _ in range(NUM_FISH)
         ]
@@ -282,17 +294,21 @@ class FishSimulation:
         #Draw sharks
         for shark in self.sharks:
             self.canvas.create_oval(
-                shark.x - 10,
-                shark.y - 10,
-                shark.x + 10,
-                shark.y + 10,
+                (shark.x - 10) * self.scaler,
+                (shark.y - 10) * self.scaler,
+                (shark.x + 10) * self.scaler,
+                (shark.y + 10) * self.scaler,
                 fill="red",
             )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
-                fish.x - 5, fish.y - 5, fish.x + 5, fish.y + 5, fill="blue"
+                (fish.x - 5) * self.scaler, 
+                (fish.y - 5) * self.scaler, 
+                (fish.x + 5) * self.scaler, 
+                (fish.y + 5) * self.scaler, 
+                fill="blue"
             )
 
         #Calculate average cohesion and number of fish alive

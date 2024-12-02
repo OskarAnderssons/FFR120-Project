@@ -28,6 +28,7 @@ be implemented.
 import tkinter as tk
 import random
 import math
+import numpy as np
 
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
@@ -43,17 +44,18 @@ FISH_SPEED = 4.9 #Speed of prey
 FISH_VISION = 50 #Vision of prey
 PREDATOR_VISION = 150 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 30 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
-
+SENSORY_DELAY_SHARK = -3 #Placeholder value for now
+DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 
 class Fish:
     def __init__(self, cohesion):
-        # Random spawns and speeds but seeded so OK
+        #Random spawns and speeds but seeded so OK
         self.x = random.uniform(0, FIELD_SIZE)
         self.y = random.uniform(0, FIELD_SIZE)
         self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)
@@ -131,6 +133,11 @@ class Fish:
         #Update position
         self.x += self.vx
         self.y += self.vy
+    def getFishPosition(self):
+        return self.x, self.y
+        
+        
+    
     """
     def naturalDeath(self):
         #Exponentially increasing death probability with age
@@ -145,7 +152,7 @@ class Shark:
         self.y = y
         self.cooldown = 0
         self.random_direction_timer = 0
-    def move(self, fish_population):
+    def move(self, fish_population, fish_position_x, fish_position_y):
         #If shark on cooldown choose a random direction and follow it until cooldown is over
         if self.cooldown > 0:
             
@@ -231,7 +238,7 @@ class FishSimulation:
             Fish(BASE_COHESION) for _ in range(NUM_FISH)#, random.uniform(0, 1), random.uniform(0, 1)) for _ in range(NUM_FISH)
         ]
         
-        #Spawn sharks, random now (seed for reproducability?)
+        #Spawn sharks, seeded!
         self.sharks = [
             Shark(
                 random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA),
@@ -247,9 +254,9 @@ class FishSimulation:
         self.runSimulation()
 
     
-    def moveSharks(self):
+    def moveSharks(self, fish_position_x, fish_position_y):
         for shark in self.sharks:
-            shark.move(self.fish_population)
+            shark.move(self.fish_population, fish_position_x, fish_position_y)
             fish_eaten = shark.eat(self.fish_population)
             
         self.total_fish_eaten += fish_eaten
@@ -275,7 +282,7 @@ class FishSimulation:
             )
 
         #Calculate average cohesion and number of fish alive
-        avg_cohesion = sum(fish.cohesion for fish in self.fish_population) / len(self.fish_population) if self.fish_population else 0
+        avg_cohesion = sum(fish.cohesion for fish in self.fish_population) / len(self.fish_population) if self.fish_population else 0 #Not used
         num_fish_alive = len(self.fish_population)
         
         #Calculate successrate of shark
@@ -283,10 +290,11 @@ class FishSimulation:
         
         self.canvas.create_text(60, 20, text=f"Generation: {self.generation}", font=("Arial", 12), fill="black")
         self.canvas.create_text(60, 40, text=f"Fish Alive: {num_fish_alive}", font=("Arial", 12), fill="black")
+        self.canvas.create_text(80,80, text = f"Avg Cohesion: {avg_cohesion}", font=("Arial", 12), fill='black')
         self.canvas.create_text(150, 60, text=f"Avg fish eaten per 1000 timestep: {1000*avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
 
     
-    #No reproduction for now, will add a simple spawning mechanism instead to keep #fish constant //RB
+    #No reproduction for now, added a simple spawning mechanism instead to keep #fish constant
     """
     def reproduce(self):
         new_population = []
@@ -309,18 +317,24 @@ class FishSimulation:
         if not self.running:
             return
 
-        self.moveSharks() #Moves sharks, eats fish
+        fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
+        fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
+        #survivors = []
+        for i,fish in enumerate(self.fish_population):
+            fish.move(self.fish_population, self.sharks)
+            fish_position_x[i,:] = np.roll(fish_position_x[i,:], -1, axis=0)
+            fish_position_y[i,:] = np.roll(fish_position_y[i,:], -1, axis=0)
+            xpos, ypos = fish.getFishPosition()
+            fish_position_x[i,DELAY_TIME-1] = xpos
+            fish_position_y[i,DELAY_TIME-1] = ypos
+        
+        self.moveSharks(fish_position_x,fish_position_y) #Moves sharks, eats fish
         
         #Check fish population size and add fish if needed
         
         if len(self.fish_population) != NUM_FISH:
             self.fish_population.append(Fish(BASE_COHESION))
             
-
-        #survivors = []
-        
-        for fish in self.fish_population:
-            fish.move(self.fish_population, self.sharks)
         """
             #Check if the fish dies of old age, unused in current implementation
 

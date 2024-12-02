@@ -55,7 +55,7 @@ SENSORY_DELAY_SHARK = -2 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
-WINDOWS_SIZE = 1000
+WINDOWS_SIZE = 750
 
 class Fish:
     def __init__(self, cohesion):
@@ -155,20 +155,21 @@ class Shark:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.xchange = 0
+        self.ychange = 0
         self.cooldown = 0
         self.random_direction_timer = 0
-        self.shark_full = False
     def move(self, fish_population, fish_position_x, fish_position_y):
         #If shark on cooldown choose a random direction and follow it until cooldown is over
-        if self.shark_full:
-            
-            self.vx = PREDATOR_SPEED/4
-            self.vy = PREDATOR_SPEED/4
-            self.x += self.vx
-            self.y += self.vy
+        xx = self.x
+        yy = self.y
+        
+        if self.cooldown > 0:
+            print(self.xchange)
+            print(self.ychange)
+            self.x += self.xchange*(PREDATOR_SPEED/4)
+            self.y += self.ychange*(PREDATOR_SPEED/4)
             self.cooldown -= 1
-            if self.cooldown == 0:
-                self.shark_full == False
         else:
             
             closest_fish = None
@@ -213,7 +214,7 @@ class Shark:
                 self.x += self.random_movex
                 self.y += self.random_movey
                 self.random_direction_timer -= 1
-                
+        
         #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
         #looks neater!)
         repulsion_strength = 10 #Adjustable parameter to control boundary force
@@ -228,7 +229,10 @@ class Shark:
             self.y += (margin - self.y) * repulsion_strength * 0.01
         elif self.y > FIELD_SIZE - margin:
             self.y += (FIELD_SIZE - margin - self.y) * repulsion_strength * 0.01
-                    
+            
+        self.xchange = self.x-xx  
+        self.ychange = self.y-yy
+                   
     def eat(self, fish_population):
         fish_eaten = 0
         for fish in fish_population[:]:
@@ -236,7 +240,6 @@ class Shark:
             if distance < 10:  
                 fish_population.remove(fish)
                 self.cooldown = PREDATOR_COOLDOWN  #Set cooldown after eating
-                self.shark_full = True
                 fish_eaten += 1
                 break
         return fish_eaten

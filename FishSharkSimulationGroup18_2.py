@@ -39,7 +39,7 @@ NUM_FISH = 50 #Amount of prey constant for now
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
 FIELD_SIZE = 600 #Size of area, also affects simulation windowsize!
-WINDOWS_SIZE = 500 #Size of area, also affects simulation windowsize!
+WINDOWS_SIZE = 400 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED = 5 #Speed of predator
 FISH_SPEED = 4.9 #Speed of prey
 FISH_VISION = 50 #Vision of prey
@@ -237,11 +237,11 @@ class FishSimulation:
         self.total_fish_eaten = 0
         #self.scaler = WINDOWS_SIZE / FIELD_SIZE
 
-        tk1 = tk.Tk()
-        tk1.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
-        tk1.configure(background='#000000')
-        tk1.attributes('-topmost', 1)
-        self.canvas = tk.Canvas(tk1, background='#ECECEC')
+        #tk1 = tk.Tk()
+        root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        #tk1.configure(background='#000000')
+        root.attributes('-topmost', 1)
+        self.canvas = tk.Canvas(root, background='#ECECEC')
         self.canvas.place(x=10, y=10, height=WINDOWS_SIZE, width=WINDOWS_SIZE)
         self.scaler = WINDOWS_SIZE / FIELD_SIZE
 

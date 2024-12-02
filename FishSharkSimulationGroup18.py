@@ -56,6 +56,7 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
+WINDOWS_SIZE = 750
 
 def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
     # Calculate radial distance from the center

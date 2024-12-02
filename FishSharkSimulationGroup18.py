@@ -1,3 +1,29 @@
+#Notes 29/11 supervisor meeting:
+#Parameters need to have a physical meaning to be useful.
+#Bounded parameters have a min/max and the meaning of these values.
+#Save variables, arrays, plots and other useful things so that additional data does not have to be generated again leading to a timewaste.
+#Work paralell
+#Rank phenomena we like to study and start at the top and work down.
+#Can send 1/2 emails, 10 is too much to supervisor
+#Overleaf can be used to make poster or powerpoint, check the forskarbyggnad to get inspiration for the poster.
+#
+
+
+"""
+This is a WIP for a predator/prey system. The simulation has prey(fish) and predators(sharks). This simulation aims to check if 
+swarming is a beneficial behaviour for the prey to ward againts the predator. This will be done using a simple evolutionary model where fish produce
+offspring with similiar swarming preference as their parents. The expected behaviour is that the fish parameter self.cohesion which models
+swarming preference will increase over time as more fish with this benificial trait survives and reproduces
+
+
+Notes:
+
+Please use camelCase for function "word1_word2_word3" for constants/variables and the same but with CAPITAL LETTERS for the tuneable parameters
+defined in the beginning of the code. Also try to follow the coding "standard" I've begun as well as possible. Add many comments so that your 
+groupmates can understand what you have implemented. If you have any ideas please comment somewhere fitting in the code a #TODO so that it can 
+be implemented.
+"""
+
 #Imports
 import tkinter as tk
 import random
@@ -9,7 +35,7 @@ import numpy as np
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 50 #Amount of prey constant for now
+NUM_FISH = 300 #Amount of prey constant for now
 BASE_COHESION = 0.5
 NUM_SHARKS = 2 #Amount of predators
 FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
@@ -25,8 +51,34 @@ PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
-SENSORY_DELAY_SHARK = -1 #Placeholder value for now
+SENSORY_DELAY_SHARK = -2 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
+USE_DELAY = True
+T_FIT = np.arange(DELAY_TIME)
+
+def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y, field_size):
+    # Calculate radial distance from the center
+    distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+    boundary_radius = field_size / 2
+
+    # Check if object is outside the effective boundary radius
+    if distance > boundary_radius - margin:
+        # Calculate direction vector pointing inward
+        direction_x = center_x - x
+        direction_y = center_y - y
+        norm = math.sqrt(direction_x**2 + direction_y**2)
+        if norm == 0:  # Avoid division by zero
+            norm = 1e-6
+        direction_x /= norm
+        direction_y /= norm
+
+        # Apply repulsive force to push the object inward
+        x += direction_x * repulsion_strength * (distance - (boundary_radius - margin)) 
+        y += direction_y * repulsion_strength * (distance - (boundary_radius - margin)) 
+
+    return x, y
+
+
 
 class Fish:
     def __init__(self, cohesion):
@@ -85,19 +137,7 @@ class Fish:
                 self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
                 self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
 
-        #Soft boundary conditions, fish are weakly repelled when approching border 
-        repel_distance = 0.05*FIELD_SIZE  #Distance at which repelling force is applied
-        repel_strength = 10 #Force strength
-
-        if self.x < repel_distance:
-            self.vx += (repel_distance - self.x) * repel_strength / repel_distance
-        elif self.x > FIELD_SIZE - repel_distance:
-            self.vx -= (self.x - (FIELD_SIZE - repel_distance)) * repel_strength / repel_distance
-
-        if self.y < repel_distance:
-            self.vy += (repel_distance - self.y) * repel_strength / repel_distance
-        elif self.y > FIELD_SIZE - repel_distance:
-            self.vy -= (self.y - (FIELD_SIZE - repel_distance)) * repel_strength / repel_distance
+        self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, FIELD_SIZE)
 
         #Limit fish speed
         speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
@@ -111,9 +151,6 @@ class Fish:
 
     def getFishPosition(self):
         return self.x, self.y
-        
-        
-    
     """
     def naturalDeath(self):
         #Exponentially increasing death probability with age
@@ -141,19 +178,33 @@ class Shark:
             
             closest_fish = None
             closest_distance = float("inf")
-            for fish in fish_population:
+            closest_index = 0
+            for j, fish in enumerate(fish_population):
                 distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)
                 if distance < closest_distance and distance < PREDATOR_VISION:
                     closest_fish = fish
                     closest_distance = distance
+                    closest_index = j
 
             if closest_fish:
-                dx = closest_fish.x - self.x
-                dy = closest_fish.y - self.y
-                dist = math.sqrt(dx ** 2 + dy ** 2)
-                if dist > 0:
-                    self.x += (dx / dist) * PREDATOR_SPEED
-                    self.y += (dy / dist) * PREDATOR_SPEED
+                dx1 = closest_fish.x - self.x
+                dy1 = closest_fish.y - self.y
+                dist1 = math.sqrt(dx1**2 + dy1**2)
+                if USE_DELAY:
+                    px = np.polyfit(T_FIT, fish_position_x[closest_index,:], 1)[0]
+                    py = np.polyfit(T_FIT, fish_position_y[closest_index,:], 1)[0]
+                    dx = (px-self.x)
+                    dy = (py-self.y)
+                    dist = math.sqrt(dx**2 + dy**2)
+                    
+                    if dist > 0:
+                        #self.x += (dx / dist) * PREDATOR_SPEED
+                        #self.y += (dy / dist) * PREDATOR_SPEED
+                        self.x += 0.5*dx*PREDATOR_SPEED/dist + 0.5*(dx1 / dist1) * PREDATOR_SPEED
+                        self.y += 0.5*dy*PREDATOR_SPEED/dist + 0.5*(dy1 / dist1) * PREDATOR_SPEED
+                else:
+                    self.x += dx1*PREDATOR_SPEED/dist1
+                    self.y += dy1*PREDATOR_SPEED/dist1
             else:
            
                 if self.random_direction_timer <= 0:
@@ -170,18 +221,7 @@ class Shark:
                 
         #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
         #looks neater!)
-        repulsion_strength = 10 #Adjustable parameter to control boundary force
-        margin = 0.05*FIELD_SIZE #Distance where soft boundary applies
-
-        if self.x < margin:
-            self.x += (margin - self.x) * repulsion_strength * 0.01
-        elif self.x > FIELD_SIZE - margin:
-            self.x += (FIELD_SIZE - margin - self.x) * repulsion_strength * 0.01
-
-        if self.y < margin:
-            self.y += (margin - self.y) * repulsion_strength * 0.01
-        elif self.y > FIELD_SIZE - margin:
-            self.y += (FIELD_SIZE - margin - self.y) * repulsion_strength * 0.01
+        self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2, FIELD_SIZE/2, 0.1*FIELD_SIZE, 5, self.x, self.y, FIELD_SIZE)
                     
     def eat(self, fish_population):
         fish_eaten = 0

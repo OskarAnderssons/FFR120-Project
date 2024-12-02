@@ -35,9 +35,9 @@ import numpy as np
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 50 #Amount of prey constant for now
+NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
+NUM_SHARKS = 3 #Amount of predators
 FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED = 5 #Speed of predator
 FISH_SPEED = 4 #Speed of prey

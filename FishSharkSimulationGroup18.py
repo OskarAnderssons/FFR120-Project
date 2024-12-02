@@ -39,7 +39,7 @@ random.seed(62)
 NUM_FISH = 100 #Amount of prey constant for now
 BASE_COHESION = 0.5
 NUM_SHARKS = 2 #Amount of predators
-FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
+FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED = 10 #Speed of predator
 FISH_SPEED = 4 #Speed of prey
 FISH_VISION = 150 #Vision of prey
@@ -75,6 +75,8 @@ def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy
         direction_y /= norm
 
         # Apply repulsive force to push the object inward
+        if direction_x:
+            pass
         vx += direction_x * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
         vy += direction_y * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
 
@@ -296,17 +298,17 @@ class FishSimulation:
         #Draw sharks
         for shark in self.sharks:
             self.canvas.create_oval(
-                shark.x - 10,
-                shark.y - 10,
-                shark.x + 10,
-                shark.y + 10,
+                (shark.x - 10)*self.scaler,
+                (shark.y - 10)*self.scaler,
+                (shark.x + 10)*self.scaler,
+                (shark.y + 10)*self.scaler,
                 fill="red",
             )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
-                fish.x - 5, fish.y - 5, fish.x + 5, fish.y + 5, fill="blue"
+                (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
             )
 
         #Calculate average cohesion and number of fish alive
@@ -383,135 +385,7 @@ class FishSimulation:
         self.updateCanvas()
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
                 
-#Main Simulation Class
-class FishSimulation:
-    def __init__(self, root):
-        self.root = root 
-        self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
-        self.canvas.pack()
-        self.time_elapsed = 0  #Total time in simulation steps
-        self.total_fish_eaten = 0
-
-        self.fish_population = [
-            Fish(BASE_COHESION) for _ in range(NUM_FISH)#, random.uniform(0, 1), random.uniform(0, 1)) for _ in range(NUM_FISH)
-        ]
-        
-        #Spawn sharks, seeded!
-        self.sharks = [
-            Shark(
-                random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA),
-                random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA)
-            )
-            for _ in range(NUM_SHARKS)
-            ]
-
-        self.generation = 0
-        self.running = True
-        #self.reproduction_timer = 0  #Not used in current implementation
-        #self.reproduction_prob = BASE_REPRODUCTION_PROB  #Not used in current implementation
-        self.runSimulation()
-
-    
-    def moveSharks(self, fish_position_x, fish_position_y):
-        for shark in self.sharks:
-            shark.move(self.fish_population, fish_position_x, fish_position_y)
-            fish_eaten = shark.eat(self.fish_population)
-            
-        self.total_fish_eaten += fish_eaten
-        self.time_elapsed += 1
-
-    def updateCanvas(self):
-        self.canvas.delete("all")
-
-        #Draw sharks
-        for shark in self.sharks:
-            self.canvas.create_oval(
-                shark.x - 10,
-                shark.y - 10,
-                shark.x + 10,
-                shark.y + 10,
-                fill="red",
-            )
-
-        #Draw fish
-        for fish in self.fish_population:
-            self.canvas.create_oval(
-                fish.x - 5, fish.y - 5, fish.x + 5, fish.y + 5, fill="blue"
-            )
-
-        #Calculate average cohesion and number of fish alive
-        avg_cohesion = sum(fish.cohesion for fish in self.fish_population) / len(self.fish_population) if self.fish_population else 0 #Not used
-        num_fish_alive = len(self.fish_population)
-        
-        #Calculate successrate of shark
-        avg_fish_eaten_per_step = self.total_fish_eaten / self.time_elapsed if self.time_elapsed > 0 else 0
-        
-        self.canvas.create_text(60, 20, text=f"Generation: {self.generation}", font=("Arial", 12), fill="black")
-        self.canvas.create_text(60, 40, text=f"Fish Alive: {num_fish_alive}", font=("Arial", 12), fill="black")
-        self.canvas.create_text(80,80, text = f"Avg Cohesion: {avg_cohesion}", font=("Arial", 12), fill='black')
-        self.canvas.create_text(150, 60, text=f"Avg fish eaten per 1000 timestep: {1000*avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
-
-    
-    #No reproduction for now, added a simple spawning mechanism instead to keep #fish constant
-    """
-    def reproduce(self):
-        new_population = []
-        self.reproduction_timer += 1
-        self.reproduction_prob = BASE_REPRODUCTION_PROB * (1 + self.reproduction_timer / 50)
-
-        for fish in self.fish_population:
-            if random.random() < self.reproduction_prob:
-                for _ in range(MAX_OFFSPRING):
-                    cohesion = max(0, min(1, fish.cohesion + random.uniform(-0.05, 0.05)))
-                    alignment = max(0, min(1, fish.alignment + random.uniform(-0.05, 0.05)))
-                    separation = max(0, min(1, fish.separation + random.uniform(-0.05, 0.05)))
-                    new_population.append(Fish(cohesion, alignment, separation))
-        self.reproduction_timer = 0
-        self.reproduction_prob = BASE_REPRODUCTION_PROB
-        return new_population
-    """
-    
-    def runSimulation(self):
-        if not self.running:
-            return
-
-        fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
-        fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
-        #survivors = []
-        for i,fish in enumerate(self.fish_population):
-            fish.move(self.fish_population, self.sharks)
-            fish_position_x[i,:] = np.roll(fish_position_x[i,:], -1, axis=0)
-            fish_position_y[i,:] = np.roll(fish_position_y[i,:], -1, axis=0)
-            xpos, ypos = fish.getFishPosition()
-            fish_position_x[i,DELAY_TIME-1] = xpos
-            fish_position_y[i,DELAY_TIME-1] = ypos
-        
-        self.moveSharks(fish_position_x,fish_position_y) #Moves sharks, eats fish
-        
-        #Check fish population size and add fish if needed
-        
-        if len(self.fish_population) != NUM_FISH:
-            self.fish_population.append(Fish(BASE_COHESION))
-            
-        """
-            #Check if the fish dies of old age, unused in current implementation
-
-            if not fish.naturalDeath():
-                survivors.append(fish)
-
- 
-        self.fish_population = survivors
-
-        if len(self.fish_population) == 0:
-            print(f"All fish eaten by generation {self.generation}!")
-        else:
-            self.generation += 1
-            print(f"Generation {self.generation}: {len(self.fish_population)} fish survive.")
-            self.fish_population += self.reproduce()
-        """
-        
-        self.updateCanvas()
-        self.root.after(TIME_STEP_DELAY, self.runSimulation)
+#
 
 
 # Run the simulation

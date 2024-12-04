@@ -37,7 +37,7 @@ import csv
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 200 #Amount of prey constant for now
+NUM_FISH = 100 #Amount of prey constant for now
 BASE_COHESION = 0.5
 NUM_SHARKS = 10 #Amount of predators
 FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
@@ -47,7 +47,7 @@ FISH_VISION = 100 #Vision of prey
 PANIC_VISION = 100 #Vision of prey when predator is close
 PREDATOR_VISION = FIELD_SIZE #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -117,6 +117,7 @@ class Fish:
         self.unique_id = unique_id
 
         self.lifetime = 0
+        self.neighbors = 0
         self.total_neighbors = 0
         self.average_neighbors = 0
 
@@ -127,6 +128,7 @@ class Fish:
 
         self.lifetime += 1
 
+        self.neighbors = 0
         for other in school:
             if other == self:
                 continue
@@ -146,7 +148,10 @@ class Fish:
                 sep_x += (self.x - other.x) * repulsion_strength
                 sep_y += (self.y - other.y) * repulsion_strength
 
-                self.total_neighbors += 1
+                if distance < FISH_VISION/3:
+                    self.total_neighbors += 1
+                    self.neighbors += 1
+                
 
         if self.lifetime > 0:
             self.average_neighbors = self.total_neighbors / self.lifetime
@@ -308,9 +313,10 @@ class Shark:
 
                 fish_data = {
                 "lifetime": fish.lifetime,
-                "average_neighbors": fish.average_neighbors
-              }   
-                
+                "average_neighbors": fish.average_neighbors,
+                "neighbors": fish.neighbors
+                 }      
+
                 self.simulation.all_fish_data[fish.unique_id] = fish_data
 
                 fish_population.remove(fish)
@@ -435,11 +441,11 @@ class FishSimulation:
             
             # Write data for currently alive fish
             for fish in self.fish_population:
-                writer.writerow([fish.unique_id, fish.lifetime, fish.average_neighbors])
+                writer.writerow([fish.unique_id, fish.lifetime, fish.average_neighbors, fish.neighbors])
             
             # Write data for dead fish
             for fish_id, fish_data in self.all_fish_data.items():
-                writer.writerow([fish_id, fish_data["lifetime"], fish_data["average_neighbors"]])
+                writer.writerow([fish_id, fish_data["lifetime"], fish_data["average_neighbors"], fish_data["neighbors"]])
 
         print("Fish data saved to 'fish_data.csv'.")
 
@@ -447,7 +453,7 @@ class FishSimulation:
         if not self.running:
             return
         
-        if self.time_elapsed >= 1000:
+        if self.time_elapsed >= 15000:
             self.running = False
             self.saveFishData()
             return
@@ -455,6 +461,7 @@ class FishSimulation:
         fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
         fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #survivors = []
+
         for i,fish in enumerate(self.fish_population):
             fish.move(self.fish_population, self.sharks)
             fish_position_x[i,:] = np.roll(fish_position_x[i,:], -1, axis=0)
@@ -462,6 +469,7 @@ class FishSimulation:
             xpos, ypos = fish.getFishPosition()
             fish_position_x[i,DELAY_TIME-1] = xpos
             fish_position_y[i,DELAY_TIME-1] = ypos
+
             if self.time_elapsed % 1000 == 0:
                 self.fish_positions[i].append((xpos, ypos))
         
@@ -491,7 +499,10 @@ class FishSimulation:
             self.fish_population += self.reproduce()
         """
         
-        self.updateCanvas()
+        if self.time_elapsed % 100 == 0:
+            self.updateCanvas()
+            print(self.time_elapsed)
+
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
     
 

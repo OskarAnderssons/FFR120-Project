@@ -331,7 +331,6 @@ class FishSimulation:
         self.canvas.create_text(80,80, text = f"Avg Cohesion: {avg_cohesion}", font=("Arial", 12), fill='black')
         self.canvas.create_text(150, 60, text=f"Avg fish eaten per 1000 timestep: {1000*avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
 
-    
     #No reproduction for now, added a simple spawning mechanism instead to keep #fish constant
     """
     def reproduce(self):
@@ -380,12 +379,11 @@ class FishSimulation:
         if len(self.fish_population) != NUM_FISH:
             self.fish_population.append(Fish(BASE_COHESION))
         
-        self.updateCanvas()
+        if self.time_elapsed % 100 == 0:
+            self.updateCanvas()
+        print(self.time_elapsed)
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
-                
-#
-
-
+            
 # Run the simulation
 root = tk.Tk()
 root.title("Fish Simulation with Multiple Sharks")

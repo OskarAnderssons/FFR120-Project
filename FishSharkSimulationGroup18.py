@@ -36,9 +36,9 @@ import numpy as np
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 10 #Amount of prey constant for now
+NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
+NUM_SHARKS = 2 #Amount of predators
 FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED =  6 #Speed of predator
 FISH_SPEED = 5.5 #Speed of prey
@@ -48,7 +48,7 @@ PREDATOR_VISION = FIELD_SIZE #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
 TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
-PREDATOR_COOLDOWN = 30  #Cooldown for predator chasing and eating
+PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
@@ -56,7 +56,7 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
-FUTURE_MAX = 10
+FUTURE_MAX = 20
 FUTURE_MIN =5
 WINDOWS_SIZE = 750
 
@@ -87,6 +87,21 @@ def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy
             vy += direction_y * repulsion_strength * math.exp((distance - (boundary_radius - margin))/boundary_radius)
 
     return vx, vy
+
+def clampPosition(x, y, field_size):
+    boundary_radius = field_size / 2
+    center_x, center_y = field_size / 2, field_size / 2
+
+    distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+    if distance > boundary_radius:
+        direction_x = (x - center_x) / distance
+        direction_y = (y - center_y) / distance
+
+        x = center_x + direction_x * boundary_radius
+        y = center_y + direction_y * boundary_radius
+
+    return x, y
+
 
 class Fish:
     def __init__(self, cohesion):
@@ -178,79 +193,95 @@ class Shark:
 
     def move(self, fish_population, fish_position_x, fish_position_y):
         if self.cooldown > 0:
-            self.vx = 0.4*PREDATOR_SPEED
-            self.vy = 0.4*PREDATOR_SPEED
+            # Calculate direction toward the center
+            center_x, center_y = FIELD_SIZE / 2, FIELD_SIZE / 2
+            dx = center_x - self.x
+            dy = center_y - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+
+            if distance > 0:
+                self.vx = (dx / distance) * 0.7 * PREDATOR_SPEED  # Slower return during cooldown
+                self.vy = (dy / distance) * 0.7 * PREDATOR_SPEED
+            else:
+                self.vx = 0
+                self.vy = 0
+            self.x += self.vx
+            self.y += self.vy
             self.cooldown -= 1
+
         else:
             self.vx = PREDATOR_SPEED
             self.vy = PREDATOR_SPEED
-        
-        closest_fish = None
-        closest_distance = float("inf")
-        closest_index = 0
-        for j, fish in enumerate(fish_population):
-            distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)
-            if distance < closest_distance and distance < PREDATOR_VISION:
-                closest_fish = fish
-                closest_distance = distance
-                closest_index = j
+            closest_fish = None
+            closest_distance = float("inf")
+            closest_index = 0
+            for j, fish in enumerate(fish_population):
+                distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)
+                if distance < closest_distance and distance < PREDATOR_VISION:
+                    closest_fish = fish
+                    closest_distance = distance
+                    closest_index = j
 
-        if closest_fish:
+            if closest_fish:
 
-            dx1 = closest_fish.x - self.x
-            dy1 = closest_fish.y - self.y
-            dist1 = math.sqrt(dx1**2 + dy1**2)
+                dx1 = closest_fish.x - self.x
+                dy1 = closest_fish.y - self.y
+                dist1 = math.sqrt(dx1**2 + dy1**2)
 
-            if USE_DELAY:
-                #future_time = min(FUTURE_MAX, max(FUTURE_MIN, closest_distance / PREDATOR_SPEED))
-                future_time = FUTURE_MAX
-                px = np.polyfit(T_FIT, fish_position_x[closest_index,:], 1)
-                py = np.polyfit(T_FIT, fish_position_y[closest_index,:], 1)
+                if USE_DELAY:
+                    #future_time = min(FUTURE_MAX, max(FUTURE_MIN, closest_distance / PREDATOR_SPEED))
+                    future_time = FUTURE_MAX
+                    px = np.polyfit(T_FIT, fish_position_x[closest_index,:], 1)
+                    py = np.polyfit(T_FIT, fish_position_y[closest_index,:], 1)
 
-                predicted_x = px[0] * future_time + px[1]
-                predicted_y = py[0] * future_time + py[1]
+                    predicted_x = px[0] * future_time + px[1]
+                    predicted_y = py[0] * future_time + py[1]
 
-                dx = (px[0]-self.x)
-                dy = (py[0]-self.y)
-                dist = math.sqrt(dx**2 + dy**2)
-                
-                if dist > 0:
-                    future_weight = min(1, closest_distance / (FISH_VISION*4))
-                    immediate_weight = 1 - future_weight
+                    dx = (px[0]-self.x)
+                    dy = (py[0]-self.y)
+                    dist = math.sqrt(dx**2 + dy**2)
+                    
+                    if dist > 0:
+                        future_weight = min(1, closest_distance / (FISH_VISION*4))
+                        immediate_weight = 1 - future_weight
 
-                    dx_future = predicted_x - self.x
-                    dy_future = predicted_y - self.y
-                    dist_future = math.sqrt(dx_future**2 + dy_future**2)
+                        dx_future = predicted_x - self.x
+                        dy_future = predicted_y - self.y
+                        dist_future = math.sqrt(dx_future**2 + dy_future**2)
 
-                    self.x += future_weight * dx_future / dist_future * self.vx
-                    self.y += future_weight * dy_future / dist_future * self.vy
+                        self.x += future_weight * dx_future / dist_future * self.vx
+                        self.y += future_weight * dy_future / dist_future * self.vy
 
-                    self.x += immediate_weight * (dx1 / dist1) * self.vx
-                    self.y += immediate_weight * (dy1 / dist1) * self.vy
+                        self.x += immediate_weight * (dx1 / dist1) * self.vx
+                        self.y += immediate_weight * (dy1 / dist1) * self.vy
+                else:
+                    self.x += dx1*self.vx/dist1
+                    self.y += dy1*self.vy/dist1
             else:
-                self.x += dx1*self.vx/dist1
-                self.y += dy1*self.vy/dist1
-        else:
-        
-            if self.random_direction_timer >= 0:
             
-                self.random_movex = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
-                self.random_movey = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
+                if self.random_direction_timer >= 0:
                 
-                self.random_direction_timer = RANDOM_DIRECTION_INTERVAL
+                    self.random_movex = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
+                    self.random_movey = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
+                    
+                    self.random_direction_timer = RANDOM_DIRECTION_INTERVAL
 
-            
-            self.x += self.random_movex
-            self.y += self.random_movey
-            self.random_direction_timer -= 1
-            
-        #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
-        #looks neater!)
+                
+                self.x += self.random_movex
+                self.y += self.random_movey
+                self.random_direction_timer -= 1
+                
+            #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
+            #looks neater!)
         dx, dy = BoundaryRepulsion(FIELD_SIZE/2, FIELD_SIZE/2, 0.1*FIELD_SIZE, 20, self.x, self.y,self.vx,self.vy, FIELD_SIZE)
-        self.vx += dx
-        self.vy += dy
+        self.vx = dx
+        self.vy = dy
+        self.x, self.y = clampPosition(self.x, self.y, FIELD_SIZE)
 
     def eat(self, fish_population):
+        if self.cooldown > 0:
+            return 0
+        
         fish_eaten = 0
         for fish in fish_population[:]:
             distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)

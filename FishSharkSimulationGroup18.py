@@ -37,15 +37,15 @@ import csv
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 100 #Amount of prey constant for now
+NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 10 #Amount of predators
+NUM_SHARKS = 5 #Amount of predators
 FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED =  12 #Speed of predator
-FISH_SPEED = 9 #Speed of prey
+FISH_SPEED = 11 #Speed of prey
 FISH_VISION = 100 #Vision of prey
-PANIC_VISION = 100 #Vision of prey when predator is close
-PREDATOR_VISION = FIELD_SIZE #Vision of predator
+PANIC_VISION = 50 #Vision of prey when predator is close
+PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
 TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
@@ -84,8 +84,8 @@ def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy
         vy += direction_y * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
 
         if distance > boundary_radius:
-            vx += direction_x * repulsion_strength * math.exp((distance - (boundary_radius - margin))/boundary_radius)
-            vy += direction_y * repulsion_strength * math.exp((distance - (boundary_radius - margin))/boundary_radius)
+            vx += direction_x * repulsion_strength * math.exp(5*(distance - (boundary_radius - margin))/boundary_radius)
+            vy += direction_y * repulsion_strength * math.exp(5*(distance - (boundary_radius - margin))/boundary_radius)
 
     return vx, vy
 
@@ -148,7 +148,7 @@ class Fish:
                 sep_x += (self.x - other.x) * repulsion_strength
                 sep_y += (self.y - other.y) * repulsion_strength
 
-                if distance < FISH_VISION/3:
+                if distance < FISH_VISION/5:
                     self.total_neighbors += 1
                     self.neighbors += 1
                 
@@ -160,8 +160,8 @@ class Fish:
             #Adjust movement based on cohesion
             center_x /= count
             center_y /= count
-            self.vx += (center_x - self.x) * self.cohesion * 0.01
-            self.vy += (center_y - self.y) * self.cohesion * 0.01
+            self.vx += (center_x - self.x) * self.cohesion * 0.005
+            self.vy += (center_y - self.y) * self.cohesion * 0.005
             avg_vx /= count
             avg_vy /= count
 
@@ -266,7 +266,7 @@ class Shark:
                     dist = math.sqrt(dx**2 + dy**2)
                     
                     if dist > 0:
-                        future_weight = min(1, closest_distance / (FISH_VISION*4))
+                        future_weight = min(0.8, closest_distance / (FISH_VISION*4))
                         immediate_weight = 1 - future_weight
 
                         dx_future = predicted_x - self.x
@@ -437,7 +437,7 @@ class FishSimulation:
         # Save all fish data (alive and dead) to a CSV file
         with open("fish_data.csv", "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Fish ID", "Lifetime", "Average Neighbors"])
+            writer.writerow(["Fish ID", "Lifetime", "Average Neighbors", "Neighbors"])
             
             # Write data for currently alive fish
             for fish in self.fish_population:
@@ -453,7 +453,7 @@ class FishSimulation:
         if not self.running:
             return
         
-        if self.time_elapsed >= 15000:
+        if self.time_elapsed >= 25000:
             self.running = False
             self.saveFishData()
             return
@@ -499,7 +499,7 @@ class FishSimulation:
             self.fish_population += self.reproduce()
         """
         
-        if self.time_elapsed % 100 == 0:
+        if self.time_elapsed % 1 == 0:
             self.updateCanvas()
             print(self.time_elapsed)
 

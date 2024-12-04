@@ -30,6 +30,7 @@ import tkinter as tk
 import random
 import math
 import numpy as np
+import csv
 
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
@@ -38,12 +39,12 @@ random.seed(62)
 #Tuneable Parameters
 NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 2 #Amount of predators
+NUM_SHARKS = 10 #Amount of predators
 FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
-PREDATOR_SPEED =  6 #Speed of predator
-FISH_SPEED = 5.5 #Speed of prey
+PREDATOR_SPEED =  12 #Speed of predator
+FISH_SPEED = 9 #Speed of prey
 FISH_VISION = 100 #Vision of prey
-PANIC_VISION = 20 #Vision of prey when predator is close
+PANIC_VISION = 100 #Vision of prey when predator is close
 PREDATOR_VISION = FIELD_SIZE #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
 TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
@@ -56,7 +57,7 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
-FUTURE_MAX = 20
+FUTURE_MAX = 10
 FUTURE_MIN =5
 WINDOWS_SIZE = 750
 
@@ -104,7 +105,7 @@ def clampPosition(x, y, field_size):
 
 
 class Fish:
-    def __init__(self, cohesion):
+    def __init__(self, cohesion, unique_id, simulation_instance):
         #Random spawns and speeds but seeded so OK
         self.x = random.uniform(0, FIELD_SIZE)
         self.y = random.uniform(0, FIELD_SIZE)
@@ -112,10 +113,19 @@ class Fish:
         self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)
         self.cohesion = cohesion  # Swarming parameter
 
+        self.simulation = simulation_instance
+        self.unique_id = unique_id
+
+        self.lifetime = 0
+        self.total_neighbors = 0
+        self.average_neighbors = 0
+
     def move(self, school, sharks):
         center_x, center_y, count = 0, 0, 0
         avg_vx, avg_vy = 0, 0
         sep_x, sep_y = 0, 0 
+
+        self.lifetime += 1
 
         for other in school:
             if other == self:
@@ -135,6 +145,11 @@ class Fish:
                 repulsion_strength = math.exp(-distance / 5)  #Exponential falloff
                 sep_x += (self.x - other.x) * repulsion_strength
                 sep_y += (self.y - other.y) * repulsion_strength
+
+                self.total_neighbors += 1
+
+        if self.lifetime > 0:
+            self.average_neighbors = self.total_neighbors / self.lifetime
 
         if count > 0:
             #Adjust movement based on cohesion
@@ -180,16 +195,20 @@ class Fish:
         death_probability = 1 - math.exp(-AGE_DEATH_RATE * self.age)
         return random.random() < death_probability
     """
+    def getFishData(self):
+        return {"lifetime": self.lifetime, "average_neighbors": self.average_neighbors}
 
 #Class for predator, constant speed for simplicity
 class Shark:
-    def __init__(self, x, y):
+    def __init__(self, x, y,simulation_instance):
         self.x = x
         self.y = y
         self.vx = PREDATOR_SPEED
         self.vy = PREDATOR_SPEED
         self.cooldown = 0
         self.random_direction_timer = 0
+
+        self.simulation = simulation_instance
 
     def move(self, fish_population, fish_position_x, fish_position_y):
         if self.cooldown > 0:
@@ -281,20 +300,25 @@ class Shark:
     def eat(self, fish_population):
         if self.cooldown > 0:
             return 0
-        
+
         fish_eaten = 0
         for fish in fish_population[:]:
             distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)
             if distance < 10:  
+
+                fish_data = {
+                "lifetime": fish.lifetime,
+                "average_neighbors": fish.average_neighbors
+              }   
+                
+                self.simulation.all_fish_data[fish.unique_id] = fish_data
+
                 fish_population.remove(fish)
                 self.cooldown = PREDATOR_COOLDOWN  #Set cooldown after eating
                 fish_eaten += 1
                 break
         return fish_eaten
-                
-        
-        
-
+            
 #Main Simulation Class
 class FishSimulation:
     def __init__(self, root):
@@ -303,7 +327,8 @@ class FishSimulation:
         #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
         self.total_fish_eaten = 0
-
+        self.fish_id_counter = 0
+        self.all_fish_data = {}
         root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
         #tk1.configure(background='#000000')
         root.attributes('-topmost', 1)
@@ -312,20 +337,23 @@ class FishSimulation:
         self.scaler = WINDOWS_SIZE / FIELD_SIZE
 
         self.fish_population = [
-            Fish(BASE_COHESION) for _ in range(NUM_FISH)#, random.uniform(0, 1), random.uniform(0, 1)) for _ in range(NUM_FISH)
+            Fish(BASE_COHESION, self.fish_id_counter + i, self) for i in range(NUM_FISH)
         ]
-        
+        self.fish_id_counter += NUM_FISH
+                
         #Spawn sharks, seeded!
         self.sharks = [
             Shark(
                 random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA),
-                random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA)
+                random.uniform(FIELD_SIZE / 2 - SHARK_SPAWN_AREA, FIELD_SIZE / 2 + SHARK_SPAWN_AREA),
+                self
             )
             for _ in range(NUM_SHARKS)
             ]
 
         self.generation = 0
         self.running = True
+        self.fish_positions = [[] for _ in range(NUM_FISH)]
         #self.reproduction_timer = 0  #Not used in current implementation
         #self.reproduction_prob = BASE_REPRODUCTION_PROB  #Not used in current implementation
         self.runSimulation()
@@ -365,7 +393,7 @@ class FishSimulation:
         #Calculate successrate of shark
         avg_fish_eaten_per_step = self.total_fish_eaten / self.time_elapsed if self.time_elapsed > 0 else 0
         
-        self.canvas.create_text(60, 20, text=f"Generation: {self.generation}", font=("Arial", 12), fill="black")
+        self.canvas.create_text(60, 20, text=f"Time: {self.time_elapsed}", font=("Arial", 12), fill="black")
         self.canvas.create_text(60, 40, text=f"Fish Alive: {num_fish_alive}", font=("Arial", 12), fill="black")
         self.canvas.create_text(80,80, text = f"Avg Cohesion: {avg_cohesion}", font=("Arial", 12), fill='black')
         self.canvas.create_text(150, 60, text=f"Avg fish eaten per 1000 timestep: {1000*avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
@@ -389,11 +417,41 @@ class FishSimulation:
         self.reproduction_prob = BASE_REPRODUCTION_PROB
         return new_population
     """
-    
+    def saveFishPositions(self):
+        # Save positions to a CSV file
+        with open("fish_positions.csv", "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Fish ID", "X Positions", "Y Positions"])
+            for i, positions in enumerate(self.fish_positions):
+                x_positions, y_positions = zip(*positions)
+                writer.writerow([i, list(x_positions), list(y_positions)])
+        print("Fish positions saved to 'fish_positions.csv'.")
+
+    def saveFishData(self):
+        # Save all fish data (alive and dead) to a CSV file
+        with open("fish_data.csv", "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Fish ID", "Lifetime", "Average Neighbors"])
+            
+            # Write data for currently alive fish
+            for fish in self.fish_population:
+                writer.writerow([fish.unique_id, fish.lifetime, fish.average_neighbors])
+            
+            # Write data for dead fish
+            for fish_id, fish_data in self.all_fish_data.items():
+                writer.writerow([fish_id, fish_data["lifetime"], fish_data["average_neighbors"]])
+
+        print("Fish data saved to 'fish_data.csv'.")
+
     def runSimulation(self):
         if not self.running:
             return
-
+        
+        if self.time_elapsed >= 1000:
+            self.running = False
+            self.saveFishData()
+            return
+        
         fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
         fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #survivors = []
@@ -404,13 +462,17 @@ class FishSimulation:
             xpos, ypos = fish.getFishPosition()
             fish_position_x[i,DELAY_TIME-1] = xpos
             fish_position_y[i,DELAY_TIME-1] = ypos
+            if self.time_elapsed % 1000 == 0:
+                self.fish_positions[i].append((xpos, ypos))
         
         self.moveSharks(fish_position_x,fish_position_y) #Moves sharks, eats fish
         
         #Check fish population size and add fish if needed
-        
+                
         if len(self.fish_population) != NUM_FISH:
-            self.fish_population.append(Fish(BASE_COHESION))
+            new_fish = Fish(BASE_COHESION, self.fish_id_counter,self)
+            self.fish_id_counter += 1
+            self.fish_population.append(new_fish)
             
         """
             #Check if the fish dies of old age, unused in current implementation
@@ -431,7 +493,7 @@ class FishSimulation:
         
         self.updateCanvas()
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
-                
+    
 
 # Run the simulation
 root = tk.Tk()

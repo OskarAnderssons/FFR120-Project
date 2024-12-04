@@ -286,6 +286,7 @@ class FishSimulation:
 
         self.generation = 0
         self.running = True
+        self.fish_positions = [[] for _ in range(NUM_FISH)]
         #self.reproduction_timer = 0  #Not used in current implementation
         #self.reproduction_prob = BASE_REPRODUCTION_PROB  #Not used in current implementation
         self.runSimulation()
@@ -353,7 +354,12 @@ class FishSimulation:
     def runSimulation(self):
         if not self.running:
             return
-
+        
+        if self.time_elapsed >= 10000:
+            self.running = False
+            self.saveFishPositions()
+            return
+        
         fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
         fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #survivors = []
@@ -365,30 +371,14 @@ class FishSimulation:
             xpos, ypos = fish.getFishPosition()
             fish_position_x[i,DELAY_TIME-1] = xpos
             fish_position_y[i,DELAY_TIME-1] = ypos
-        
+
+            self.fish_positions[i].append((xpos, ypos))
+
+
         self.moveSharks(fish_position_x,fish_position_y) #Moves sharks, eats fish
-        
         #Check fish population size and add fish if needed
-        
         if len(self.fish_population) != NUM_FISH:
             self.fish_population.append(Fish(BASE_COHESION))
-            
-        """
-            #Check if the fish dies of old age, unused in current implementation
-
-            if not fish.naturalDeath():
-                survivors.append(fish)
-
- 
-        self.fish_population = survivors
-
-        if len(self.fish_population) == 0:
-            print(f"All fish eaten by generation {self.generation}!")
-        else:
-            self.generation += 1
-            print(f"Generation {self.generation}: {len(self.fish_population)} fish survive.")
-            self.fish_population += self.reproduce()
-        """
         
         self.updateCanvas()
         self.root.after(TIME_STEP_DELAY, self.runSimulation)

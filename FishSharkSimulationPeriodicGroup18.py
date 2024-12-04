@@ -36,19 +36,19 @@ import numpy as np
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 10 #Amount of prey constant for now
+NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
-FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
-PREDATOR_SPEED =  6 #Speed of predator
-FISH_SPEED = 5.5 #Speed of prey
-FISH_VISION = 100 #Vision of prey
-PANIC_VISION = 20 #Vision of prey when predator is close
-PREDATOR_VISION = FIELD_SIZE #Vision of predator
+NUM_SHARKS = 2 #Amount of predators
+FIELD_SIZE = 1000 #Size of area, also affects simulation windowsize!
+PREDATOR_SPEED = 8 #Speed of predator
+FISH_SPEED = 6 #Speed of prey
+FISH_VISION = 150 #Vision of prey
+PANIC_VISION = 100 #Vision of prey when predator is close
+PREDATOR_VISION = FIELD_SIZE*2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 10 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
-PREDATOR_COOLDOWN = 30  #Cooldown for predator chasing and eating
+PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
@@ -56,37 +56,9 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
-FUTURE_MAX = 10
-FUTURE_MIN =5
+FUTURE_MAX = 2
+FUTURE_MIN = 2
 WINDOWS_SIZE = 750
-
-def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
-    # Calculate radial distance from the center
-    distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
-    boundary_radius = field_size / 2
-
-    # Check if object is outside the effective boundary radius
-    if distance > boundary_radius - margin:
-        # Calculate direction vector pointing inward
-        direction_x = center_x - x
-        direction_y = center_y - y
-        norm = math.sqrt(direction_x**2 + direction_y**2)
-        if norm == 0:  # Avoid division by zero
-            norm = 1e-6
-        direction_x /= norm
-        direction_y /= norm
-
-        # Apply repulsive force to push the object inward
-        if direction_x:
-            pass
-        vx += direction_x * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
-        vy += direction_y * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
-
-        if distance > boundary_radius:
-            vx += direction_x * repulsion_strength * math.exp((distance - (boundary_radius - margin))/boundary_radius)
-            vy += direction_y * repulsion_strength * math.exp((distance - (boundary_radius - margin))/boundary_radius)
-
-    return vx, vy
 
 class Fish:
     def __init__(self, cohesion):
@@ -95,7 +67,7 @@ class Fish:
         self.y = random.uniform(0, FIELD_SIZE)
         self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)
         self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)
-        self.cohesion = cohesion  # Swarming parameter
+        self.cohesion = cohesion  #Swarming parameter
 
     def move(self, school, sharks):
         center_x, center_y, count = 0, 0, 0
@@ -145,7 +117,6 @@ class Fish:
                 self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
                 self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
 
-        self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
 
         #Limit fish speed
         speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
@@ -153,12 +124,26 @@ class Fish:
             self.vx = (self.vx / speed) * FISH_SPEED
             self.vy = (self.vy / speed) * FISH_SPEED
 
+        # Periodic boundary conditions
+        if self.x < 0:
+            self.x += FIELD_SIZE
+        elif self.x > FIELD_SIZE:
+            self.x -= FIELD_SIZE
+
+        if self.y < 0:
+            self.y += FIELD_SIZE
+        elif self.y > FIELD_SIZE:
+            self.y -= FIELD_SIZE
+
         #Update position
         self.x += self.vx
         self.y += self.vy
 
     def getFishPosition(self):
         return self.x, self.y
+        
+        
+    
     """
     def naturalDeath(self):
         #Exponentially increasing death probability with age
@@ -171,8 +156,8 @@ class Shark:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.vx = PREDATOR_SPEED
-        self.vy = PREDATOR_SPEED
+        self.vx = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
+        self.vy = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
         self.cooldown = 0
         self.random_direction_timer = 0
 
@@ -215,7 +200,7 @@ class Shark:
                 dist = math.sqrt(dx**2 + dy**2)
                 
                 if dist > 0:
-                    future_weight = min(1, closest_distance / (FISH_VISION*4))
+                    future_weight = min(1, closest_distance / PREDATOR_VISION)
                     immediate_weight = 1 - future_weight
 
                     dx_future = predicted_x - self.x
@@ -246,9 +231,15 @@ class Shark:
             
         #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
         #looks neater!)
-        dx, dy = BoundaryRepulsion(FIELD_SIZE/2, FIELD_SIZE/2, 0.1*FIELD_SIZE, 20, self.x, self.y,self.vx,self.vy, FIELD_SIZE)
-        self.vx += dx
-        self.vy += dy
+        if self.x < 0:
+            self.x += FIELD_SIZE
+        elif self.x > FIELD_SIZE:
+            self.x -= FIELD_SIZE
+
+        if self.y < 0:
+            self.y += FIELD_SIZE
+        elif self.y > FIELD_SIZE:
+            self.y -= FIELD_SIZE
 
     def eat(self, fish_population):
         fish_eaten = 0
@@ -366,6 +357,7 @@ class FishSimulation:
         fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
         fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #survivors = []
+
         for i,fish in enumerate(self.fish_population):
             fish.move(self.fish_population, self.sharks)
             fish_position_x[i,:] = np.roll(fish_position_x[i,:], -1, axis=0)
@@ -401,6 +393,8 @@ class FishSimulation:
         self.updateCanvas()
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
                 
+#
+
 
 # Run the simulation
 root = tk.Tk()

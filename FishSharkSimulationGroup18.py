@@ -1,4 +1,5 @@
 #Class for predator, constant speed for simplicity
+#Class for predator, constant speed for simplicity
 #Notes 29/11 supervisor meeting:
 #Parameters need to have a physical meaning to be useful.
 #Bounded parameters have a min/max and the meaning of these values.
@@ -48,10 +49,11 @@ PREDATOR_VISION = FIELD_SIZE #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
 TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
-PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
+PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
+SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
 SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
@@ -150,12 +152,19 @@ class Fish:
         self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
         self.vx += avg_vx * 0.2
         self.vy += avg_vy * 0.2
+        self.vx += avg_vx * 0.2
+        self.vy += avg_vy * 0.2
         self.vx += sep_x * 0.05
         self.vy += sep_y * 0.05
 
         #Avoid predators
         for shark in sharks:
             shark_dist = math.sqrt((self.x - shark.x) ** 2 + (self.y - shark.y) ** 2)
+            if shark_dist < PANIC_VISION:
+                self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
+                self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
+
+        self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
             if shark_dist < PANIC_VISION:
                 self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
                 self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
@@ -171,6 +180,7 @@ class Fish:
         #Update position
         self.x += self.vx
         self.y += self.vy
+
 
     def getFishPosition(self):
         return self.x, self.y
@@ -188,8 +198,11 @@ class Shark:
         self.y = y
         self.vx = PREDATOR_SPEED
         self.vy = PREDATOR_SPEED
+        self.vx = PREDATOR_SPEED
+        self.vy = PREDATOR_SPEED
         self.cooldown = 0
         self.random_direction_timer = 0
+
 
     def move(self, fish_population, fish_position_x, fish_position_y):
         if self.cooldown > 0:
@@ -301,8 +314,17 @@ class FishSimulation:
         self.root = root 
         #self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
         #self.canvas.pack()
+        #self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
+        #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
         self.total_fish_eaten = 0
+
+        root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        #tk1.configure(background='#000000')
+        root.attributes('-topmost', 1)
+        self.canvas = tk.Canvas(root, background='#ECECEC')
+        self.canvas.place(x=10, y=10, height=WINDOWS_SIZE, width=WINDOWS_SIZE)
+        self.scaler = WINDOWS_SIZE / FIELD_SIZE
 
         root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
         #tk1.configure(background='#000000')
@@ -349,12 +371,17 @@ class FishSimulation:
                 (shark.y - 10)*self.scaler,
                 (shark.x + 10)*self.scaler,
                 (shark.y + 10)*self.scaler,
+                (shark.x - 10)*self.scaler,
+                (shark.y - 10)*self.scaler,
+                (shark.x + 10)*self.scaler,
+                (shark.y + 10)*self.scaler,
                 fill="red",
             )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
+                (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
                 (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
             )
 

@@ -36,17 +36,17 @@ import numpy as np
 random.seed(62)
 
 #Tuneable Parameters
-NUM_FISH = 1 #Amount of prey constant for now
+NUM_FISH = 200 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
+NUM_SHARKS = 2 #Amount of predators
 FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
-PREDATOR_SPEED =  6 #Speed of predator
-FISH_SPEED = 5.5 #Speed of prey
+PREDATOR_SPEED =  8 #Speed of predator
+FISH_SPEED = 5 #Speed of prey
 FISH_VISION = 100 #Vision of prey
-PANIC_VISION = 20 #Vision of prey when predator is close
+PANIC_VISION = 100 #Vision of prey when predator is close
 PREDATOR_VISION = FIELD_SIZE #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 5 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -56,8 +56,8 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
-FUTURE_MAX = 20
-FUTURE_MIN =5
+FUTURE_MAX = 5
+#FUTURE_MIN = 5
 WINDOWS_SIZE = 750
 
 def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
@@ -297,12 +297,13 @@ class Shark:
 
 #Main Simulation Class
 class FishSimulation:
-    def __init__(self, root):
+    def __init__(self, root, nosim):
         self.root = root 
         #self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
         #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
         self.total_fish_eaten = 0
+        self.nosim = nosim
 
         root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
         #tk1.configure(background='#000000')
@@ -357,6 +358,16 @@ class FishSimulation:
             self.canvas.create_oval(
                 (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
             )
+            
+            self.canvas.create_oval(
+                (fish.x - FISH_VISION) * self.scaler, (fish.y - FISH_VISION) * self.scaler,
+                (fish.x + FISH_VISION) * self.scaler, (fish.y + FISH_VISION) * self.scaler,
+                outline="lightblue")  #Light color to simulate transparency
+            
+            self.canvas.create_oval(
+                (fish.x - PANIC_VISION) * self.scaler, (fish.y - PANIC_VISION) * self.scaler,
+                (fish.x + PANIC_VISION) * self.scaler, (fish.y + PANIC_VISION) * self.scaler,
+                outline="lightpink")  #Light color to simulate transparency
 
         #Calculate average cohesion and number of fish alive
         avg_cohesion = sum(fish.cohesion for fish in self.fish_population) / len(self.fish_population) if self.fish_population else 0 #Not used
@@ -391,6 +402,7 @@ class FishSimulation:
     """
     
     def runSimulation(self):
+        print(self.time_elapsed)
         if not self.running:
             return
 
@@ -428,8 +440,8 @@ class FishSimulation:
             print(f"Generation {self.generation}: {len(self.fish_population)} fish survive.")
             self.fish_population += self.reproduce()
         """
-        
-        self.updateCanvas()
+        if not self.nosim:
+            self.updateCanvas()
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
                 
 
@@ -483,9 +495,11 @@ def runSystem(iterations):
     
     
 #Run the simulation
-"""root = tk.Tk()
-root.title("Fish Simulation with Multiple Sharks")
-simulation = FishSimulation(root)
-root.mainloop()"""
 
-print(runSystem(5000))
+nosim = False
+root = tk.Tk()
+root.title("Fish Simulation with Multiple Sharks")
+simulation = FishSimulation(root, nosim)
+root.mainloop()
+
+#print(runSystem(5000))

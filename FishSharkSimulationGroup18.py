@@ -34,22 +34,20 @@ import csv
 
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
-random.seed(62)
+#random.seed(62)
 
 #Tuneable Parameters
-
-NUM_FISH = 200 #Amount of prey constant for now
+NUM_FISH = 1 #Amount of prey constant for now
 BASE_COHESION = 0.5
-NUM_SHARKS = 5 #Amount of predators
-FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
+NUM_SHARKS = 1 #Amount of predators
+FIELD_SIZE = 500 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED =  12 #Speed of predator
 FISH_SPEED = 11 #Speed of prey
-FISH_VISION = 100 #Vision of prey
+FISH_VISION = 75 #Vision of prey
 PANIC_VISION = 50 #Vision of prey when predator is close
 PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
-
+TIME_STEP_DELAY = 10 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -116,7 +114,10 @@ class Fish:
         self.y = random.uniform(0, FIELD_SIZE)
         self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)
         self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)
+        self.random_movex = 0
+        self.random_movey = 0
         self.cohesion = cohesion  # Swarming parameter
+        self.random_direction_timer = 0
 
         self.simulation = simulation_instance
         self.unique_id = unique_id
@@ -127,75 +128,101 @@ class Fish:
         self.average_neighbors = 0
 
     def move(self, school, sharks):
-        center_x, center_y, count = 0, 0, 0
-        avg_vx, avg_vy = 0, 0
-        sep_x, sep_y = 0, 0 
+        if NUM_FISH == 1:
+            #Avoid predators
+            for shark in sharks:
+                shark_dist = math.sqrt((self.x - shark.x) ** 2 + (self.y - shark.y) ** 2)
+                if shark_dist < PANIC_VISION:
+                    self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
+                    self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
+                else:
+                    if self.random_direction_timer == 0:
+                        self.random_movex= random.uniform(-FISH_SPEED,FISH_SPEED)
+                        self.random_movey = random.uniform(-FISH_SPEED,FISH_SPEED)
+                        self.random_direction_timer = RANDOM_DIRECTION_INTERVAL
+                    self.vx = self.random_movex
+                    self.vy = self.random_movey
+                    self.random_direction_timer -= 1
+            self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
 
-        self.lifetime += 1
-
-        self.neighbors = 0
-        for other in school:
-            if other == self:
-                continue
-            distance = math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
-            if distance < FISH_VISION:
-                center_x += other.x
-                center_y += other.y
-                count += 1
-                avg_vx += other.vx
-                avg_vy += other.vy
+            #Limit fish speed
+            speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
+            if speed > FISH_SPEED:
+                self.vx = (self.vx / speed) * FISH_SPEED
+                self.vy = (self.vy / speed) * FISH_SPEED
                 
-                if distance == 0:
-                    distance = 1e-6
-                
-                #Calculate sepration, to avoid overlap while keeping swarming behaviour   
-                repulsion_strength = math.exp(-distance / 5)  #Exponential falloff
-                sep_x += (self.x - other.x) * repulsion_strength
-                sep_y += (self.y - other.y) * repulsion_strength
+            self.x += self.vx
+            self.y += self.vy
+        else:
+            center_x, center_y, count = 0, 0, 0
+            avg_vx, avg_vy = 0, 0
+            sep_x, sep_y = 0, 0 
 
-                if distance < FISH_VISION/5:
-                    self.total_neighbors += 1
-                    self.neighbors += 1
-                
+            self.lifetime += 1
 
-        if self.lifetime > 0:
-            self.average_neighbors = self.total_neighbors / self.lifetime
+            self.neighbors = 0
+            for other in school:
+                if other == self:
+                    continue
+                distance = math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+                if distance < FISH_VISION:
+                    center_x += other.x
+                    center_y += other.y
+                    count += 1
+                    avg_vx += other.vx
+                    avg_vy += other.vy
+                    
+                    if distance == 0:
+                        distance = 1e-6
+                    
+                    #Calculate sepration, to avoid overlap while keeping swarming behaviour   
+                    repulsion_strength = math.exp(-distance / 5)  #Exponential falloff
+                    sep_x += (self.x - other.x) * repulsion_strength
+                    sep_y += (self.y - other.y) * repulsion_strength
 
-        if count > 0:
-            #Adjust movement based on cohesion
-            center_x /= count
-            center_y /= count
-            self.vx += (center_x - self.x) * self.cohesion * 0.005
-            self.vy += (center_y - self.y) * self.cohesion * 0.005
-            avg_vx /= count
-            avg_vy /= count
+                    if distance < FISH_VISION/5:
+                        self.total_neighbors += 1
+                        self.neighbors += 1
+                    
 
-        #Fish movement controlled by noise, the schools average speed and a separation force to avoid clustering
-        self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
-        self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
-        self.vx += avg_vx * 0.2
-        self.vy += avg_vy * 0.2
-        self.vx += sep_x * 0.05
-        self.vy += sep_y * 0.05
+            if self.lifetime > 0:
+                self.average_neighbors = self.total_neighbors / self.lifetime
 
-        #Avoid predators
-        for shark in sharks:
-            shark_dist = math.sqrt((self.x - shark.x) ** 2 + (self.y - shark.y) ** 2)
-            if shark_dist < PANIC_VISION:
-                self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
-                self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
+            if count > 0:
+                #Adjust movement based on cohesion
+                center_x /= count
+                center_y /= count
+                self.vx += (center_x - self.x) * self.cohesion * 0.005
+                self.vy += (center_y - self.y) * self.cohesion * 0.005
+                avg_vx /= count
+                avg_vy /= count
 
-        self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
+            #Fish movement controlled by noise, the schools average speed and a separation force to avoid clustering
+            self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
+            self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
+            self.vx += avg_vx * 0.2
+            self.vy += avg_vy * 0.2
+            self.vx += sep_x * 0.05
+            self.vy += sep_y * 0.05
 
-        #Limit fish speed
-        speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
-        if speed > FISH_SPEED:
-            self.vx = (self.vx / speed) * FISH_SPEED
-            self.vy = (self.vy / speed) * FISH_SPEED
+            #Avoid predators
+            for shark in sharks:
+                shark_dist = math.sqrt((self.x - shark.x) ** 2 + (self.y - shark.y) ** 2)
+                if shark_dist < PANIC_VISION:
+                    self.vx += (self.x - shark.x) *(PANIC_VISION-shark_dist)/PANIC_VISION * self.cohesion 
+                    self.vy += (self.y - shark.y) *(PANIC_VISION-shark_dist)/PANIC_VISION* self.cohesion
 
-        #Update position
-        self.x += self.vx
-        self.y += self.vy
+            self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
+
+            #Limit fish speed
+            speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
+            if speed > FISH_SPEED:
+                self.vx = (self.vx / speed) * FISH_SPEED
+                self.vy = (self.vy / speed) * FISH_SPEED
+
+            #Update position
+            self.x += self.vx
+            self.y += self.vy
 
     def getFishPosition(self):
         return self.x, self.y

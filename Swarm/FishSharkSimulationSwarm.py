@@ -42,6 +42,7 @@ random.seed(62)
 
 #Tuneable Parameters
 NUM_FISH = 100 #Amount of prey constant for now
+TIMESTEP = 0.1 #Timestep for the simulation
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
 FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!

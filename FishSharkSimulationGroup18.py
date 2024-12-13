@@ -41,7 +41,7 @@ NUM_FISH = 1 #Amount of prey constant for now
 TIMESTEP = 0.1
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
-FIELD_SIZE = 1000 #Size of area, also affects simulation windowsize!
+FIELD_SIZE = 4000
 PREDATOR_SPEED = 30*(5/18) #Speed of predator m/s
 FISH_SPEED = 24*(5/18) #Speed of prey
 FISH_VISION = 75 #Vision of prey
@@ -52,14 +52,14 @@ TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
-RANDOM_DIRECTION_INTERVAL = 100 #How often predator changes direction when no prey in vision
+RANDOM_DIRECTION_INTERVAL = 100/TIMESTEP #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
-SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
+SENSORY_DELAY_SHARK = int(-5/TIMESTEP) #Placeholder value for now -2 or lower if USE_DELAY == TRUE
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
 
-FUTURE_MAX = 10
+#FUTURE_MAX = 10
 WINDOWS_SIZE = 750
 
 def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
@@ -224,9 +224,6 @@ class Fish:
             #Update position
             self.x += self.vx*TIMESTEP
             self.y += self.vy*TIMESTEP
-        print("FISH SPEED")
-        print(self.vx)
-        print(self.vy)
     def getFishPosition(self):
         return self.x, self.y
     """
@@ -337,8 +334,6 @@ class Shark:
         dx, dy = BoundaryRepulsion(FIELD_SIZE/2, FIELD_SIZE/2, 0.1*FIELD_SIZE, 20, self.x, self.y,self.vx,self.vy, FIELD_SIZE)
         self.vx = dx*TIMESTEP
         self.vy = dy*TIMESTEP
-        print("SHARK SPEED")
-        print(self.vx,self.vy)
         self.x, self.y = clampPosition(self.x, self.y, FIELD_SIZE)
 
     def eat(self, fish_population):
@@ -502,7 +497,7 @@ class FishSimulation:
 
     def runSimulation(self):
         if NUM_FISH == 1:
-            max_time = 100000
+            max_time = 10000
             max_steps = max_time/TIMESTEP
         else:
             max_time = 25000
@@ -563,10 +558,11 @@ class FishSimulation:
         return self.avg_fish_eaten_per_step
 
 # Run the simulation
-delay_list = [0,-2,-5,-10,-20]
+delay_list = [0,-2/TIMESTEP,-5/TIMESTEP,-10/TIMESTEP,-20/TIMESTEP, 30/TIMESTEP, -50/TIMESTEP]
+delay_seconds = [0,-2,-5,-10,-20, -30, -50]
 TTK_list = []
 for delay in delay_list:
-    random.seed(25)
+    random.seed(12)
     if delay == 0:
         USE_DELAY = False
         FUTURE_MAX = -delay
@@ -585,6 +581,6 @@ for delay in delay_list:
 with open("delay_TTK.csv", "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["Sensory Delay", "TTK"])
-            for D,T in zip(delay_list, TTK_list):
+            for D,T in zip(delay_seconds, TTK_list):
                 writer.writerow([D,T])
             

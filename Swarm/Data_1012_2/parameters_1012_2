@@ -1,0 +1,43 @@
+NUM_FISH = 100 #Amount of prey constant for now
+BASE_COHESION = 0.5
+NUM_SHARKS = 2 #Amount of predators
+FIELD_SIZE = 1500 #Size of area, also affects simulation windowsize!
+PREDATOR_SPEED =  12 #Speed of predator
+FISH_SPEED = 11 #Speed of prey
+FISH_VISION = 100 #Vision of prey
+PANIC_VISION = 100 #Vision of prey when predator is close
+PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
+MAX_OFFSPRING = 5 #Max possible amount of prey offspring
+TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
+BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
+PREDATOR_COOLDOWN = 30  #Cooldown for predator chasing and eating
+AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
+RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
+SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
+SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
+DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
+USE_DELAY = True
+T_FIT = np.arange(DELAY_TIME)
+
+FUTURE_MAX = 10 #Max future time for prediction
+WINDOWS_SIZE = 750
+
+future_weight = min(0.8, closest_distance / (FISH_VISION))
+
+
+if count > 0:
+    #Adjust movement based on cohesion
+    center_x /= count
+    center_y /= count
+    self.vx += (center_x - self.x) * self.cohesion * 0.03
+    self.vy += (center_y - self.y) * self.cohesion * 0.03
+    avg_vx /= count
+    avg_vy /= count
+
+#Fish movement controlled by noise, the schools average speed and a separation force to avoid clustering
+self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
+self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
+self.vx += avg_vx * 0.2
+self.vy += avg_vy * 0.2
+self.vx += sep_x * 0.1
+self.vy += sep_y * 0.1

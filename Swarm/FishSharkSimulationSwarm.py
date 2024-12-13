@@ -44,7 +44,7 @@ random.seed(62)
 NUM_FISH = 100 #Amount of prey constant for now
 TIMESTEP = 0.1 #Timestep for the simulation
 BASE_COHESION = 0.5
-NUM_SHARKS = 1 #Amount of predators
+NUM_SHARKS = 2 #Amount of predators
 FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED =  18 #Speed of predator
 FISH_SPEED = 16 #Speed of prey

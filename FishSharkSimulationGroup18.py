@@ -34,31 +34,31 @@ import csv
 
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
-#random.seed(62)
+
 
 #Tuneable Parameters
 NUM_FISH = 1 #Amount of prey constant for now
+TIMESTEP = 0.1
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
-FIELD_SIZE = 500 #Size of area, also affects simulation windowsize!
-PREDATOR_SPEED =  12 #Speed of predator
-FISH_SPEED = 11 #Speed of prey
+FIELD_SIZE = 1000 #Size of area, also affects simulation windowsize!
+PREDATOR_SPEED = 30*(5/18) #Speed of predator m/s
+FISH_SPEED = 24*(5/18) #Speed of prey
 FISH_VISION = 75 #Vision of prey
-PANIC_VISION = 50 #Vision of prey when predator is close
+PANIC_VISION = 75 #Vision of prey when predator is close
 PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 10 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
-RANDOM_DIRECTION_INTERVAL = 20 #How often predator changes direction when no prey in vision
+RANDOM_DIRECTION_INTERVAL = 100 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
 SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == TRUE
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
 FUTURE_MAX = 10
-FUTURE_MIN =5
 WINDOWS_SIZE = 750
 
 def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
@@ -109,8 +109,8 @@ class Fish:
         #Random spawns and speeds but seeded so OK
         self.x = random.uniform(0, FIELD_SIZE)
         self.y = random.uniform(0, FIELD_SIZE)
-        self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)
-        self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)
+        self.vx = random.uniform(-FISH_SPEED, FISH_SPEED)*TIMESTEP
+        self.vy = random.uniform(-FISH_SPEED, FISH_SPEED)*TIMESTEP
         self.random_movex = 0
         self.random_movey = 0
         self.cohesion = cohesion  # Swarming parameter
@@ -141,6 +141,7 @@ class Fish:
                     self.vy = self.random_movey
                     self.random_direction_timer -= 1
             self.vx, self.vy = BoundaryRepulsion(FIELD_SIZE/2,FIELD_SIZE/2 ,0.1*FIELD_SIZE, 5, self.x, self.y, self.vx, self.vy, FIELD_SIZE)
+        
 
             #Limit fish speed
             speed = math.sqrt(self.vx ** 2 + self.vy ** 2)
@@ -148,8 +149,8 @@ class Fish:
                 self.vx = (self.vx / speed) * FISH_SPEED
                 self.vy = (self.vy / speed) * FISH_SPEED
                 
-            self.x += self.vx
-            self.y += self.vy
+            self.x += self.vx*TIMESTEP
+            self.y += self.vy*TIMESTEP
         else:
             center_x, center_y, count = 0, 0, 0
             avg_vx, avg_vy = 0, 0
@@ -218,9 +219,11 @@ class Fish:
                 self.vy = (self.vy / speed) * FISH_SPEED
 
             #Update position
-            self.x += self.vx
-            self.y += self.vy
-
+            self.x += self.vx*TIMESTEP
+            self.y += self.vy*TIMESTEP
+        print("FISH SPEED")
+        print(self.vx)
+        print(self.vy)
     def getFishPosition(self):
         return self.x, self.y
     """
@@ -237,8 +240,8 @@ class Shark:
     def __init__(self, x, y,simulation_instance):
         self.x = x
         self.y = y
-        self.vx = PREDATOR_SPEED
-        self.vy = PREDATOR_SPEED
+        self.vx = PREDATOR_SPEED*TIMESTEP
+        self.vy = PREDATOR_SPEED*TIMESTEP
         self.cooldown = 0
         self.random_direction_timer = 0
 
@@ -258,8 +261,8 @@ class Shark:
             else:
                 self.vx = 0
                 self.vy = 0
-            self.x += self.vx
-            self.y += self.vy
+            self.x += self.vx*TIMESTEP
+            self.y += self.vy*TIMESTEP
             self.cooldown -= 1
 
         else:
@@ -302,33 +305,35 @@ class Shark:
                         dy_future = predicted_y - self.y
                         dist_future = math.sqrt(dx_future**2 + dy_future**2)
 
-                        self.x += future_weight * dx_future / dist_future * self.vx
-                        self.y += future_weight * dy_future / dist_future * self.vy
+                        self.x += future_weight * dx_future / dist_future * self.vx*TIMESTEP
+                        self.y += future_weight * dy_future / dist_future * self.vy*TIMESTEP
 
-                        self.x += immediate_weight * (dx1 / dist1) * self.vx
-                        self.y += immediate_weight * (dy1 / dist1) * self.vy
+                        self.x += immediate_weight * (dx1 / dist1) * self.vx*TIMESTEP
+                        self.y += immediate_weight * (dy1 / dist1) * self.vy*TIMESTEP
                 else:
-                    self.x += dx1*self.vx/dist1
-                    self.y += dy1*self.vy/dist1
+                    self.x += dx1*self.vx/dist1*TIMESTEP
+                    self.y += dy1*self.vy/dist1*TIMESTEP
             else:
             
                 if self.random_direction_timer >= 0:
                 
-                    self.random_movex = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
-                    self.random_movey = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)
+                    self.random_movex = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)*TIMESTEP
+                    self.random_movey = random.uniform(-PREDATOR_SPEED, PREDATOR_SPEED)*TIMESTEP
                     
                     self.random_direction_timer = RANDOM_DIRECTION_INTERVAL
 
                 
-                self.x += self.random_movex
-                self.y += self.random_movey
+                self.x += self.random_movex*TIMESTEP
+                self.y += self.random_movey*TIMESTEP
                 self.random_direction_timer -= 1
                 
             #Soft boundary conditions, similiar to the fishes. #TODO Change this into a function and use it for both fish and shark (NOT NEEDED BUT
             #looks neater!)
         dx, dy = BoundaryRepulsion(FIELD_SIZE/2, FIELD_SIZE/2, 0.1*FIELD_SIZE, 20, self.x, self.y,self.vx,self.vy, FIELD_SIZE)
-        self.vx = dx
-        self.vy = dy
+        self.vx = dx*TIMESTEP
+        self.vy = dy*TIMESTEP
+        print("SHARK SPEED")
+        print(self.vx,self.vy)
         self.x, self.y = clampPosition(self.x, self.y, FIELD_SIZE)
 
     def eat(self, fish_population):
@@ -358,6 +363,7 @@ class Shark:
 class FishSimulation:
     def __init__(self, root):
         self.root = root 
+        self.avg_fish_eaten_per_step = 0
         #self.canvas = tk.Canvas(root, width=FIELD_SIZE, height=FIELD_SIZE, bg="lightblue")
         #self.canvas.pack()
         self.time_elapsed = 0  #Total time in simulation steps
@@ -389,6 +395,8 @@ class FishSimulation:
         self.generation = 0
         self.running = True
         self.fish_positions = [[] for _ in range(NUM_FISH)]
+        self.fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
+        self.fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #self.reproduction_timer = 0  #Not used in current implementation
         #self.reproduction_prob = BASE_REPRODUCTION_PROB  #Not used in current implementation
         self.runSimulation()
@@ -426,12 +434,14 @@ class FishSimulation:
         num_fish_alive = len(self.fish_population)
         
         #Calculate successrate of shark
-        avg_fish_eaten_per_step = self.total_fish_eaten / self.time_elapsed if self.time_elapsed > 0 else 0
-        
-        self.canvas.create_text(60, 20, text=f"Time: {self.time_elapsed}", font=("Arial", 12), fill="black")
-        self.canvas.create_text(60, 40, text=f"Fish Alive: {num_fish_alive}", font=("Arial", 12), fill="black")
-        self.canvas.create_text(80,80, text = f"Avg Cohesion: {avg_cohesion}", font=("Arial", 12), fill='black')
-        self.canvas.create_text(150, 60, text=f"Avg fish eaten per 1000 timestep: {1000*avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
+        avg_fish_eaten_per_step = self.total_fish_eaten / (self.time_elapsed*TIMESTEP) if self.time_elapsed > 0 else 0
+        self.avg_fish_eaten_per_step = avg_fish_eaten_per_step
+        self.canvas.create_text(50, 20, text=f"Time: {int(self.time_elapsed*TIMESTEP)}", font=("Arial", 12), fill="black")
+        self.canvas.create_text(65, 40, text=f"Amount of Fish: {NUM_FISH}", font=("Arial", 12), fill="black")
+        self.canvas.create_text(80,80, text = f"Amount of Predator: {NUM_SHARKS}", font=("Arial", 12), fill='black')
+        self.canvas.create_text(85,100, text= f'Sensory Delay Shark: {FUTURE_MAX}', font=("Arial", 12), fill='black')
+        if avg_fish_eaten_per_step > 0:
+            self.canvas.create_text(140, 60, text=f"Average Time To Kill (s): {1/avg_fish_eaten_per_step:.2f}", font=("Arial", 12), fill="black")
 
     
     #No reproduction for now, added a simple spawning mechanism instead to keep #fish constant
@@ -479,30 +489,34 @@ class FishSimulation:
         print("Fish data saved to 'fish_data.csv'.")
 
     def runSimulation(self):
+        if NUM_FISH == 1:
+            max_time = 100000
+            max_steps = max_time/TIMESTEP
+        else:
+            max_time = 25000
         if not self.running:
             return
         
-        if self.time_elapsed >= 25000:
+        if self.time_elapsed >= max_steps:
             self.running = False
             self.saveFishData()
+            root.after(1000, root.destroy)
             return
         
-        fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
-        fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
         #survivors = []
 
         for i,fish in enumerate(self.fish_population):
             fish.move(self.fish_population, self.sharks)
-            fish_position_x[i,:] = np.roll(fish_position_x[i,:], -1, axis=0)
-            fish_position_y[i,:] = np.roll(fish_position_y[i,:], -1, axis=0)
+            self.fish_position_x[i,:] = np.roll(self.fish_position_x[i,:], -1, axis=0)
+            self.fish_position_y[i,:] = np.roll(self.fish_position_y[i,:], -1, axis=0)
             xpos, ypos = fish.getFishPosition()
-            fish_position_x[i,DELAY_TIME-1] = xpos
-            fish_position_y[i,DELAY_TIME-1] = ypos
+            self.fish_position_x[i,DELAY_TIME-1] = xpos
+            self.fish_position_y[i,DELAY_TIME-1] = ypos
 
             if self.time_elapsed % 1000 == 0:
                 self.fish_positions[i].append((xpos, ypos))
         
-        self.moveSharks(fish_position_x,fish_position_y) #Moves sharks, eats fish
+        self.moveSharks(self.fish_position_x,self.fish_position_y) #Moves sharks, eats fish
         
         #Check fish population size and add fish if needed
                 
@@ -530,13 +544,34 @@ class FishSimulation:
         
         if self.time_elapsed % 1 == 0:
             self.updateCanvas()
-            print(self.time_elapsed)
 
         self.root.after(TIME_STEP_DELAY, self.runSimulation)
-    
+    def get_TTK(self):
+        return self.avg_fish_eaten_per_step
 
 # Run the simulation
-root = tk.Tk()
-root.title("Fish Simulation with Multiple Sharks")
-simulation = FishSimulation(root)
-root.mainloop()
+delay_list = [0,-2,-5,-10,-20]
+TTK_list = []
+for delay in delay_list:
+    random.seed(25)
+    if delay == 0:
+        USE_DELAY = False
+        FUTURE_MAX = -delay
+    else:
+        FUTURE_MAX = -delay
+    root = tk.Tk()
+    root.title("Fish Simulation with Multiple Sharks")
+    simulation = FishSimulation(root)
+    root.mainloop()
+    KPS = simulation.get_TTK()
+    TTK = 1/KPS
+    print(TTK)
+    TTK_list.append(TTK)
+    
+    
+with open("delay_TTK.csv", "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Sensory Delay", "TTK"])
+            for D,T in zip(delay_list, TTK_list):
+                writer.writerow([D,T])
+            

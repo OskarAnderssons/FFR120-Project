@@ -50,7 +50,7 @@ PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
 TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
-PREDATOR_COOLDOWN = 20  #Cooldown for predator chasing and eating
+PREDATOR_COOLDOWN = 50  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
 RANDOM_DIRECTION_INTERVAL = 100 #How often predator changes direction when no prey in vision
 SHARK_SPAWN_AREA = FIELD_SIZE/2 #Spawn area, used to distribute the predators. Increase denominator constant to decrease spawn radius
@@ -58,6 +58,7 @@ SENSORY_DELAY_SHARK = -5 #Placeholder value for now -2 or lower if USE_DELAY == 
 DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preallocating array
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
+
 FUTURE_MAX = 10
 WINDOWS_SIZE = 750
 
@@ -84,6 +85,7 @@ def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy
         vy += direction_y * repulsion_strength * ((distance - (boundary_radius - margin))/boundary_radius-0.2)**2
 
         if distance > boundary_radius:
+
             vx += direction_x * repulsion_strength * math.exp(5*(distance - (boundary_radius - margin))/boundary_radius)
             vy += direction_y * repulsion_strength * math.exp(5*(distance - (boundary_radius - margin))/boundary_radius)
 
@@ -102,6 +104,7 @@ def clampPosition(x, y, field_size):
         y = center_y + direction_y * boundary_radius
 
     return x, y
+
 
 
 class Fish:
@@ -244,11 +247,12 @@ class Shark:
         self.vy = PREDATOR_SPEED*TIMESTEP
         self.cooldown = 0
         self.random_direction_timer = 0
-
         self.simulation = simulation_instance
+
 
     def move(self, fish_population, fish_position_x, fish_position_y):
         if self.cooldown > 0:
+
             # Calculate direction toward the center
             center_x, center_y = FIELD_SIZE / 2, FIELD_SIZE / 2
             dx = center_x - self.x
@@ -268,6 +272,7 @@ class Shark:
         else:
             self.vx = PREDATOR_SPEED
             self.vy = PREDATOR_SPEED
+
             closest_fish = None
             closest_distance = float("inf")
             closest_index = 0
@@ -370,6 +375,13 @@ class FishSimulation:
         self.total_fish_eaten = 0
         self.fish_id_counter = 0
         self.all_fish_data = {}
+        root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
+        #tk1.configure(background='#000000')
+        root.attributes('-topmost', 1)
+        self.canvas = tk.Canvas(root, background='#ECECEC')
+        self.canvas.place(x=10, y=10, height=WINDOWS_SIZE, width=WINDOWS_SIZE)
+        self.scaler = WINDOWS_SIZE / FIELD_SIZE
+
         root.geometry(f'{WINDOWS_SIZE + 20}x{WINDOWS_SIZE + 20}')
         #tk1.configure(background='#000000')
         root.attributes('-topmost', 1)
@@ -542,6 +554,7 @@ class FishSimulation:
             self.fish_population += self.reproduce()
         """
         
+
         if self.time_elapsed % 1 == 0:
             self.updateCanvas()
 

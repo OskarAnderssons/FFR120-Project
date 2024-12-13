@@ -40,21 +40,21 @@ import datetime
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
 #Tuneable Parameters
-NUM_FISH = 1 #Amount of prey constant for now
+NUM_FISH = 100 #Amount of prey constant for now
 NUM_SHARKS = 1 #Amount of predators
 SWARM = True
 
 TIMESTEP = 0.1
 BASE_COHESION = 0.5
 NUM_SHARKS = 1 #Amount of predators
-FIELD_SIZE = 750 #Size of area, also affects simulation windowsize!
+FIELD_SIZE = 75 #Size of area, also affects simulation windowsize!
 PREDATOR_SPEED = 18 #Speed of predator m/s
 FISH_SPEED = 16 #Speed of prey
-FISH_VISION = 250 #Vision of prey
-PANIC_VISION = 100 #Vision of prey when predator is close
-PREDATOR_VISION = FIELD_SIZE*1.2 #Vision of predator
+FISH_VISION = 5 #Vision of prey
+PANIC_VISION = 3 #Vision of prey when predator is close
+PREDATOR_VISION = FIELD_SIZE/2 #Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 10 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
 PREDATOR_COOLDOWN = 30  #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -185,7 +185,7 @@ class Fish:
                         distance = 1e-6
                     
                     #Calculate sepration, to avoid overlap while keeping swarming behaviour   
-                    repulsion_strength = math.exp(-distance / 5)  #Exponential falloff
+                    repulsion_strength = math.exp(-distance / 10)  #Exponential falloff
                     sep_x += (self.x - other.x) * repulsion_strength
                     sep_y += (self.y - other.y) * repulsion_strength
 
@@ -201,18 +201,18 @@ class Fish:
                 #Adjust movement based on cohesion
                 center_x /= count
                 center_y /= count
-                self.vx += (center_x - self.x) * self.cohesion * 0.03
-                self.vy += (center_y - self.y) * self.cohesion * 0.03
+                self.vx += (center_x - self.x) * self.cohesion * 0.5
+                self.vy += (center_y - self.y) * self.cohesion * 0.5
                 avg_vx /= count
                 avg_vy /= count
 
             #Fish movement controlled by noise, the schools average speed and a separation force to avoid clustering
-            self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
-            self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.1
-            self.vx += avg_vx * 0.2
-            self.vy += avg_vy * 0.2
-            self.vx += sep_x * 0.1
-            self.vy += sep_y * 0.1
+            self.vx += random.uniform(-0.5, 0.5) * self.cohesion * 0.01
+            self.vy += random.uniform(-0.5, 0.5) * self.cohesion * 0.01
+            self.vx += avg_vx * 0.3
+            self.vy += avg_vy * 0.3
+            self.vx += sep_x * 0.01
+            self.vy += sep_y * 0.01
 
             #Avoid predators
             for shark in sharks:
@@ -318,7 +318,7 @@ class Shark:
                     dist = math.sqrt(dx**2 + dy**2)
                     
                     if dist > 0:
-                        future_weight = min(0.8, FUTURE_MAX*TIMESTEP*closest_distance / (FISH_VISION))
+                        future_weight = min(0.8, closest_distance / (FISH_VISION))
                         immediate_weight = 1 - future_weight
 
                         dx_future = predicted_x - self.x
@@ -363,7 +363,7 @@ class Shark:
         fish_eaten = 0
         for fish in fish_population[:]:
             distance = math.sqrt((fish.x - self.x) ** 2 + (fish.y - self.y) ** 2)
-            if distance < 5:  
+            if distance < 0.5:  
 
                 fish_data = {
                 "lifetime": fish.lifetime,
@@ -443,17 +443,17 @@ class FishSimulation_1vs1:
         #Draw sharks
         for shark in self.sharks:
             self.canvas.create_oval(
-                (shark.x - 10)*self.scaler,
-                (shark.y - 10)*self.scaler,
-                (shark.x + 10)*self.scaler,
-                (shark.y + 10)*self.scaler,
+                (shark.x - 1)*self.scaler,
+                (shark.y - 1)*self.scaler,
+                (shark.x + 1)*self.scaler,
+                (shark.y + 1)*self.scaler,
                 fill="red",
             )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
-                (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
+                (fish.x - 0.25)*self.scaler, (fish.y - 0.25)*self.scaler, (fish.x + 0.25)*self.scaler, (fish.y + 0.25)*self.scaler, fill="blue"
             )
 
         #Calculate average cohesion and number of fish alive
@@ -635,10 +635,10 @@ class FishSimulation_swarm:
         #Draw sharks
         for idx, shark in enumerate(self.sharks):
             self.canvas.create_oval(
-                (shark.x - 10)*self.scaler,
-                (shark.y - 10)*self.scaler,
-                (shark.x + 10)*self.scaler,
-                (shark.y + 10)*self.scaler,
+                (shark.x - 1)*self.scaler,
+                (shark.y - 1)*self.scaler,
+                (shark.x + 1)*self.scaler,
+                (shark.y + 1)*self.scaler,
                 fill="red",
             )
             color = self.predicted_colors[idx % len(self.predicted_colors)]
@@ -646,17 +646,17 @@ class FishSimulation_swarm:
             
             if shark.predicted_x is not None and shark.predicted_y is not None and DRAW_FUTURE:
                 self.canvas.create_oval(
-                    (shark.predicted_x - 15) * self.scaler,
-                    (shark.predicted_y - 15) * self.scaler,
-                    (shark.predicted_x + 15) * self.scaler,
-                    (shark.predicted_y + 15) * self.scaler,
+                    (shark.predicted_x - 0.5) * self.scaler,
+                    (shark.predicted_y - 0.5) * self.scaler,
+                    (shark.predicted_x + 0.5) * self.scaler,
+                    (shark.predicted_y + 0.5) * self.scaler,
                     fill=color,
                 )
 
         #Draw fish
         for fish in self.fish_population:
             self.canvas.create_oval(
-                (fish.x - 5)*self.scaler, (fish.y - 5)*self.scaler, (fish.x + 5)*self.scaler, (fish.y + 5)*self.scaler, fill="blue"
+                (fish.x - 0.25)*self.scaler, (fish.y - 0.25)*self.scaler, (fish.x + 0.25)*self.scaler, (fish.y + 0.25)*self.scaler, fill="blue"
             )
 
         #Calculate average cohesion and number of fish alive

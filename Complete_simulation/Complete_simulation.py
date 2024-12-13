@@ -31,11 +31,14 @@ import random
 import math
 import numpy as np
 import csv
+from PIL import Image
+import io   
+import subprocess
+import os
+import datetime
 
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
-
-
 #Tuneable Parameters
 NUM_FISH = 1 #Amount of prey constant for now
 NUM_SHARKS = 1 #Amount of predators
@@ -62,7 +65,8 @@ DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preal
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
 
-FUTURE_MAX = 20
+FUTURE_TIME = 1
+FUTURE_MAX = FUTURE_TIME/TIMESTEP
 WINDOWS_SIZE = 750
 DRAW_FUTURE = True
 
@@ -314,7 +318,7 @@ class Shark:
                     dist = math.sqrt(dx**2 + dy**2)
                     
                     if dist > 0:
-                        future_weight = min(0.8, FUTURE_MAX*closest_distance / (FISH_VISION))
+                        future_weight = min(0.8, FUTURE_MAX*TIMESTEP*closest_distance / (FISH_VISION))
                         immediate_weight = 1 - future_weight
 
                         dx_future = predicted_x - self.x

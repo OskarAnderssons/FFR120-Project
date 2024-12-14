@@ -40,11 +40,11 @@ import datetime
 #Seeding the randomness here for testing and reproducability, comment out to test with nonseeding randomness. This seed was quite nice for the 
 #shark spawns but you can mess around with the seeds
 #Tuneable Parameters
-NUM_FISH = 1 #Amount of prey constant for now
+NUM_FISH = 100 #Amount of prey constant for now
 NUM_SHARKS = 1 #Amount of predators
 PREDATOR_COOLDOWN = 10 #Cooldown for predator after eating prey (30 for swarms, 10 for 1vs1)
 PANIC_VISION = 10 #Vision of prey when predator is close (10 for swarms, 20 for 1vs1)
-SWARM = False
+SWARM = True
 
 TIMESTEP = 0.1
 BASE_COHESION = 5
@@ -55,7 +55,7 @@ FISH_VISION = 10 #Vision of prey
 
 PREDATOR_VISION = FIELD_SIZE#Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 1 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 20 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
   #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -66,10 +66,10 @@ DELAY_TIME = -SENSORY_DELAY_SHARK #Inverse of the negative delay, used for preal
 USE_DELAY = True
 T_FIT = np.arange(DELAY_TIME)
 
-FUTURE_TIME = 0.00000001
+FUTURE_TIME = 1
 FUTURE_MAX = FUTURE_TIME/TIMESTEP
 WINDOWS_SIZE = 750
-DRAW_FUTURE = True
+DRAW_FUTURE = False
 SPAWNED = False
 
 def BoundaryRepulsion(center_x, center_y, margin, repulsion_strength, x, y,vx,vy, field_size):
@@ -533,7 +533,7 @@ class FishSimulation_1vs1:
 
     def runSimulation(self):
         if NUM_FISH == 1:
-            max_time = 1000
+            max_time = 10000
             max_steps = max_time/TIMESTEP
         else:
             max_time = 25000
@@ -844,7 +844,7 @@ if SWARM:
     root.mainloop()
 # Run the simulation
 else:
-    delay_list = [0,0.00001,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5]
+    delay_list = [0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,1]
     TTK_list = []
 
     for delay in delay_list:

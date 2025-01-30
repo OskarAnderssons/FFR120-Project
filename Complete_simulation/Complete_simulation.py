@@ -55,7 +55,7 @@ FISH_VISION = 10 #Vision of prey
 
 PREDATOR_VISION = FIELD_SIZE#Vision of predator
 MAX_OFFSPRING = 5 #Max possible amount of prey offspring
-TIME_STEP_DELAY = 20 #Changes speed of simulation (Higher = Slower)!
+TIME_STEP_DELAY = 100 #Changes speed of simulation (Higher = Slower)!
 BASE_REPRODUCTION_PROB = 0.001 #Defaut reproduction probability, increases over time and resets to this when prey have offspring
   #Cooldown for predator chasing and eating
 AGE_DEATH_RATE = 0.00005 #Exponent for the exponential death chance increase with prey age
@@ -393,7 +393,12 @@ class Shark:
                 fish_eaten += 1
                 break
         return fish_eaten
-            
+    
+    def getSharkPosition(self):
+        return self.x, self.y
+    def getSharkPredictedPosition(self):
+        return self.predicted_x, self.predicted_y
+    
 #Main Simulation Class
 class FishSimulation_1vs1:
     def __init__(self, root):
@@ -440,6 +445,12 @@ class FishSimulation_1vs1:
         self.fish_positions = [[] for _ in range(NUM_FISH)]
         self.fish_position_x = np.zeros([NUM_FISH, DELAY_TIME])
         self.fish_position_y = np.zeros([NUM_FISH, DELAY_TIME])
+
+        self.shark_positions = [[] for _ in range(NUM_SHARKS)]
+        self.shark_position_x = 0
+        self.shark_position_y = 0
+
+
         #self.reproduction_timer = 0  #Not used in current implementation
         #self.reproduction_prob = BASE_REPRODUCTION_PROB  #Not used in current implementation
         self.runSimulation()
@@ -515,6 +526,15 @@ class FishSimulation_1vs1:
                 writer.writerow([i, list(x_positions), list(y_positions)])
         print("Fish positions saved to 'fish_positions.csv'.")
 
+    def saveSharkPositions(self):
+        with open("shark_positions.csv", "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Shark ID", "X Positions", "Y Positions"])
+            for i, positions in enumerate(self.shark_positions):
+                x_positions, y_positions = zip(*positions)
+                writer.writerow([i, list(x_positions), list(y_positions)])
+        print("Shark positions saved to 'shark_positions.csv'.")
+
     def saveFishData(self):
         # Save all fish data (alive and dead) to a CSV file
         with open("fish_data.csv", "w", newline="") as csvfile:
@@ -533,7 +553,7 @@ class FishSimulation_1vs1:
 
     def runSimulation(self):
         if NUM_FISH == 1:
-            max_time = 10000
+            max_time = 1000
             max_steps = max_time/TIMESTEP
         else:
             max_time = 25000
@@ -543,6 +563,8 @@ class FishSimulation_1vs1:
         if self.time_elapsed >= max_steps:
             self.running = False
             # self.saveFishData()
+            self.saveFishPositions()
+            self.saveSharkPositions()
             root.after(1000, root.destroy)
             return
         
@@ -556,9 +578,14 @@ class FishSimulation_1vs1:
             self.fish_position_x[i,DELAY_TIME-1] = xpos
             self.fish_position_y[i,DELAY_TIME-1] = ypos
 
-            if self.time_elapsed % 1000 == 0:
+            if self.time_elapsed % 1 == 0:
                 self.fish_positions[i].append((xpos, ypos))
-        
+
+        for i, shark in enumerate(self.sharks):
+            xpos, ypos = shark.getSharkPosition()
+            if self.time_elapsed % 1 == 0:
+                self.shark_positions[i].append((xpos, ypos))
+
         self.moveSharks(self.fish_position_x,self.fish_position_y) #Moves sharks, eats fish
         
         #Check fish population size and add fish if needed
@@ -844,12 +871,12 @@ if SWARM:
     root.mainloop()
 # Run the simulation
 else:
-    delay_list = [0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,1]
+    delay_list = [0.5]
     TTK_list = []
 
     for delay in delay_list:
         # print(delay)
-        random.seed(25)
+        random.seed(24)
         if delay == 0:
             USE_DELAY = False
             FUTURE_MAX = -delay
